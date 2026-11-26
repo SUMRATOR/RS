@@ -29,7 +29,11 @@ jobs:
       - name: Type check (mypy)
         run: mypy rubik_studio || true
       - name: Tests
-        run: pytest -v
+        # JUnit-отчёт нужен, чтобы падения были видны аннотациями GitHub.
+        run: pytest -v --junit-xml=report.xml
+      - name: Test failures as annotations
+        if: failure()
+        run: python tools/ci_report_F.py report.xml
 
   # Второй прогон на Windows: приложение распространяется как EXE, а часть
   # кода зависит от платформы (msvcrt, пути, запуск из exe). На Linux эти
