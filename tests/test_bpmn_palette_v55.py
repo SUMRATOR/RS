@@ -172,7 +172,7 @@ async def test_palette_renders_in_ui(user: User):
 
     # Палитра содержит 43 символа и 43 кнопки «добавить».
     await user.should_see("События")
-    await user.should_see("Ветвление")
+    await user.should_see("Шлюзы")
     await user.should_see("Начальное событие (здесь начинается процесс)")
 
     # Кнопка добавления у каждого символа помечена маркером
