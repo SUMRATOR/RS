@@ -97,7 +97,7 @@ def create_sidebar() -> None:
     current_path = ""
     try:
         current_path = context.client.page.path
-    except Exception:  # noqa: BLE001 — путь доступен не всегда
+    except Exception:  # путь доступен не всегда (до сборки страницы)
         current_path = ""
 
     with ui.left_drawer(fixed=True).classes("p-2 rs-sidebar"):

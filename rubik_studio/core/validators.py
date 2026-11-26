@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 MAX_NAME_LENGTH = 500
@@ -120,7 +120,7 @@ def validate_task_action(
 def validate_deadline(due_date: datetime | None) -> tuple[bool, str]:
     if due_date is None:
         return True, ""
-    now = datetime.now(due_date.tzinfo or timezone.utc)
+    now = datetime.now(due_date.tzinfo or UTC)
     if due_date < now:
         return False, "Дедлайн не может быть в прошлом"
     return True, ""

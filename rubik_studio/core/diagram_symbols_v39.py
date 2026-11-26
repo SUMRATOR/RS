@@ -323,7 +323,9 @@ SYMBOLS.update({
 # Полный набор событий и шлюзов BPMN 2.0 по таблицам спецификации.
 # Старые коды не удаляются: диаграммы, сохранённые ранее, открываются
 # без миграции. Подписи берутся из каталога V55 («термин (пояснение)»).
-from rubik_studio.core.bpmn_catalog_v55 import CATALOG as _BPMN_CATALOG_V55
+from rubik_studio.core.bpmn_catalog_v55 import (  # noqa: E402 — расширяет SYMBOLS ниже
+    CATALOG as _BPMN_CATALOG_V55,
+)
 
 SYMBOLS.update({
     _code: _info["label"]

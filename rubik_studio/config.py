@@ -1,16 +1,13 @@
 from __future__ import annotations
 
 # RS_PERSISTENT_CONFIG_V1
-
 import json
 import logging
 import os
 import secrets
 import sys
-
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-
 
 logger = logging.getLogger("rubik_studio")
 
@@ -185,7 +182,7 @@ class AppConfig:
             )
 
     @classmethod
-    def load(cls) -> "AppConfig":
+    def load(cls) -> AppConfig:
 
         if not CONFIG_PATH.exists():
             cfg = cls()

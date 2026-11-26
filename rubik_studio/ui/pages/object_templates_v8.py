@@ -2,7 +2,6 @@ from __future__ import annotations
 
 # RS_OBJECT_TEMPLATES_UI_V8
 # RS_TEMPLATE_EDIT_UI_V9
-
 from nicegui import ui
 
 from rubik_studio.core.object_templates_v8 import (

@@ -1,7 +1,7 @@
 
 from __future__ import annotations
-# RS_BPMN_REPOSITORY_FLOWS_V43
 
+# RS_BPMN_REPOSITORY_FLOWS_V43
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
@@ -9,19 +9,18 @@ from nicegui import ui
 
 from rubik_studio.auth.middleware import current_user
 from rubik_studio.core.repository import RepositoryError, repo_service
+from rubik_studio.ui.layout import (
+    confirm_dialog,
+    create_page_layout,
+    show_error,
+    show_success,
+)
 from rubik_studio.ui.pages.object_links_v10 import (
     open_object_links_dialog,
 )
 from rubik_studio.ui.pages.object_templates_v8 import (
     open_create_from_template_dialog,
     open_templates_dialog,
-)
-
-from rubik_studio.ui.layout import (
-    confirm_dialog,
-    create_page_layout,
-    show_error,
-    show_success,
 )
 
 # RS_NAVIGATION_ATTRIBUTES_V4

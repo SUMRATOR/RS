@@ -4,7 +4,6 @@ import datetime
 import sqlite3
 from pathlib import Path
 
-
 REQUIRED = {
     "rs_diagram_storage_version": {"singleton", "version"},
     "rs_diagram_layouts": {

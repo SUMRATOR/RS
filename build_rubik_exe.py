@@ -4,7 +4,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 PROJECT = Path(__file__).resolve().parent
 ASSETS = PROJECT / "rubik_studio" / "assets"
 

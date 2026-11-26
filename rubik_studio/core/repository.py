@@ -1,28 +1,23 @@
-
 from __future__ import annotations
-
-from typing import Any
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
+from rubik_studio.core.audit_logger import audit
 from rubik_studio.core.database import get_session_factory
 from rubik_studio.core.models import (
+    ModelElementBinding,
+    ModelingDatabase,
     Object,
     ObjectLink,
     ObjectType,
-    ModelingDatabase,
-    ModelElementBinding,
 )
-
 from rubik_studio.core.validators import (
     validate_description,
     validate_link,
     validate_object_name,
 )
-
-from rubik_studio.core.audit_logger import audit
 
 
 class RepositoryError(Exception):
@@ -74,13 +69,13 @@ class RepositoryService:
             if database_id:
                 query = query.where(
                     or_(
-                        ObjectType.is_system == True,
+                        ObjectType.is_system.is_(True),
                         ObjectType.database_id == database_id,
                     )
                 )
             else:
                 query = query.where(
-                    ObjectType.is_system == True
+                    ObjectType.is_system.is_(True)
                 )
 
             result = await session.execute(
@@ -712,7 +707,7 @@ class RepositoryService:
                 .where(
                     ObjectType.id == type_id,
                     ObjectType.database_id == database_id,
-                    ObjectType.is_system == False,
+                    ObjectType.is_system.is_(False),
                 )
                 .values(
                     name=name,
@@ -821,7 +816,7 @@ class RepositoryService:
                 .where(
                     ObjectType.id == type_id,
                     ObjectType.database_id == database_id,
-                    ObjectType.is_system == False,
+                    ObjectType.is_system.is_(False),
                     ~used,
                 )
                 .execution_options(synchronize_session=False)

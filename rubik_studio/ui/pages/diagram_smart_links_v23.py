@@ -7,12 +7,11 @@
 """
 
 from __future__ import annotations
-# RS_BPMN_SYMBOLS_V39
 
+# RS_BPMN_SYMBOLS_V39
 import html
 import math
 import uuid
-
 
 LINK_NAMES = {
     "USES": "Использует",
@@ -323,7 +322,10 @@ def render_svg(nodes, links, stored_edges, width, height):
         return markup, count
 
     svg_ns = "http://www.w3.org/2000/svg"
-    q = lambda name: "{" + svg_ns + "}" + name
+    def q(name: str) -> str:
+        """Полное имя тега в пространстве имён SVG."""
+        return "{" + svg_ns + "}" + name
+
     _ET.register_namespace("", svg_ns)
 
     root = _ET.fromstring(markup)

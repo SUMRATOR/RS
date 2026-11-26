@@ -25,31 +25,31 @@ from rubik_studio.core.repository import RepositoryService
 repository_service = RepositoryService()
 # RS_BPMN_SHAPES_V55: единый источник разметки символов —
 # палитра, поле и колесо рисуют символ одинаково.
-from rubik_studio.core.bpmn_catalog_v55 import (
+from rubik_studio.core.bpmn_catalog_v55 import (  # noqa: E402 — подключается отдельным блоком
     CATALOG as BPMN_CATALOG_V55,
 )
-from rubik_studio.core.bpmn_catalog_v55 import (
+from rubik_studio.core.bpmn_catalog_v55 import (  # noqa: E402 — подключается отдельным блоком
     by_groups as bpmn_groups_v55,
 )
-from rubik_studio.core.bpmn_shapes_v55 import (
+from rubik_studio.core.bpmn_shapes_v55 import (  # noqa: E402 — подключается отдельным блоком
     shape_markup as bpmn_shape_v55,
 )
-from rubik_studio.core.bpmn_shapes_v55 import (
+from rubik_studio.core.bpmn_shapes_v55 import (  # noqa: E402 — подключается отдельным блоком
     thumbnail_svg as bpmn_thumb_v55,
 )
-from rubik_studio.core.diagram_storage_v15 import (
+from rubik_studio.core.diagram_storage_v15 import (  # noqa: E402 — подключается отдельным блоком
     DiagramConflict,
     DiagramStorageError,
     load_diagram,
     save_diagram,
 )
-from rubik_studio.ui.pages.canvas_draft_v11 import (
+from rubik_studio.ui.pages.canvas_draft_v11 import (  # noqa: E402 — подключается отдельным блоком
     open_canvas_draft as open_technical_draft,
 )
-from rubik_studio.ui.pages.diagram_smart_links_v23 import (
+from rubik_studio.ui.pages.diagram_smart_links_v23 import (  # noqa: E402 — подключается отдельным блоком
     key as smart_link_key,
 )
-from rubik_studio.ui.pages.diagram_smart_links_v23 import (
+from rubik_studio.ui.pages.diagram_smart_links_v23 import (  # noqa: E402 — подключается отдельным блоком
     render_svg as render_smart_links_svg,
 )
 
@@ -858,10 +858,6 @@ async def open_model_editor(
             for node in selected_nodes
         }
 
-        selected_by_id = {
-            str(node["id"]): node for node in selected_nodes
-        }
-
         draft = {
             "common": "CONTROL",
             "source": str(selected_nodes[0]["id"]),
@@ -1009,14 +1005,11 @@ async def open_model_editor(
                     return
 
                 try:
-                    source_center = (
-                        float(source_node["x"])
-                        + float(source_node.get("width", NODE_WIDTH)) / 2
-                    )
-                    target_center = (
-                        float(target_node["x"])
-                        + float(target_node.get("width", NODE_WIDTH)) / 2
-                    )
+                    # Координаты не нужны для связи, но проверяем, что они
+                    # числа: иначе линия не построится и редактор «зависнет».
+                    for checked_node in (source_node, target_node):
+                        float(checked_node["x"])
+                        float(checked_node.get("width", NODE_WIDTH))
                 except (KeyError, TypeError, ValueError):
                     ui.notify(
                         f"Строка {index}: некорректные координаты.",
@@ -2789,7 +2782,6 @@ async def open_model_editor(
 
                 symbol_type_v39 = node.get("symbol_type")
                 symbol_style_v39 = ""
-                symbol_mark_v39 = ""
 
                 if symbol_type_v39 in {
                     "START_EVENT", "INTERMEDIATE_EVENT", "END_EVENT"
@@ -2813,22 +2805,15 @@ async def open_model_editor(
                         "border-radius:0; border:2px solid #facc15; "
                         "background:#53472a; "
                     )
-                    symbol_mark_v39 = {
-                        "EXCLUSIVE_GATEWAY": "◇ X",
-                        "PARALLEL_GATEWAY": "◇ +",
-                        "INCLUSIVE_GATEWAY": "◇ O",
-                    }[symbol_type_v39]
 
                 elif symbol_type_v39 == "SUBPROCESS":
                     symbol_style_v39 = "border:2px solid #93c5fd; "
-                    symbol_mark_v39 = "⊞ "
 
                 elif symbol_type_v39 in {"PARTICIPANT", "LANE"}:
                     symbol_style_v39 = (
                         "border-radius:2px; border:2px solid #c4b5fd; "
                         "background:#35304b; "
                     )
-                    symbol_mark_v39 = "▥ "
 
                 elif symbol_type_v39 == "TASK":
                     symbol_style_v39 = "border:2px solid #93c5fd; "

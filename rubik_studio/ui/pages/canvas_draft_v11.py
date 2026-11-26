@@ -601,7 +601,8 @@ async def open_canvas_draft(database_id, database_name):
         ).style("color:#94a3b8;")
 
         with ui.row().classes("items-center w-full"):
-            object_select = ui.select(
+            # Элемент нужен интерфейсу; ссылка на него не используется.
+            ui.select(
                 options=options(),
                 label="Объект репозитория",
                 on_change=lambda e: state.update({"object_id": e.value}),

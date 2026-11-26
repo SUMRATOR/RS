@@ -117,7 +117,7 @@ async def delete_user(user_id: str, acting_user_id: str, acting_username: str = 
 
         if user.role == "admin":
             admins = await session.execute(
-                select(User).where(User.role == "admin", User.is_active == True)  # noqa: E712
+                select(User).where(User.role == "admin", User.is_active.is_(True))
             )
             if len(admins.scalars().all()) <= 1:
                 raise AuthError("Нельзя удалить единственного администратора")

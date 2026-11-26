@@ -44,7 +44,6 @@ def main() -> int:
             return 1
     else:
         # Проверяем, что нумерация непрерывная — иначе архив будет битым.
-        expected = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         indexes = [int(p.suffix[1:]) for p in parts]
         if indexes != list(range(1, len(parts) + 1)):
             print(f"✗ Пропущены части! Есть: {indexes}")

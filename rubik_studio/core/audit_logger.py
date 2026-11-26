@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
@@ -64,7 +64,7 @@ class AuditLogger:
             factory = get_session_factory()
             async with factory() as session:
                 entry = AuditLog(
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                     user_id=user_id,
                     username=username,
                     ip_address=ip_address,
@@ -77,7 +77,7 @@ class AuditLogger:
                 )
                 session.add(entry)
                 await session.commit()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             system_log.error("Не удалось записать аудит-лог (action=%s): %s", action, exc)
 
     async def get_logs(

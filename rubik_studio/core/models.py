@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     JSON,
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
-    CheckConstraint,
     Index,
     Integer,
     String,
@@ -27,7 +27,7 @@ def _uuid() -> str:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 # ── Репозиторий объектов ────────────────────────────────────────────────────
@@ -70,7 +70,7 @@ class ObjectType(Base):
         Boolean, default=True, nullable=False
     )
 
-    objects: Mapped[list["Object"]] = relationship(
+    objects: Mapped[list[Object]] = relationship(
         back_populates="type"
     )
 
@@ -126,7 +126,7 @@ class Object(Base):
         onupdate=_now,
     )
 
-    type: Mapped["ObjectType"] = relationship(
+    type: Mapped[ObjectType] = relationship(
         back_populates="objects",
         lazy="selectin",
     )
@@ -478,7 +478,7 @@ class ModelType(Base):
         nullable=False,
     )
 
-    category: Mapped["ModelCategory"] = relationship(
+    category: Mapped[ModelCategory] = relationship(
         lazy="selectin",
     )
 
@@ -543,7 +543,7 @@ class ModelingDatabase(Base):
         nullable=False,
     )
 
-    methodology: Mapped["Methodology"] = relationship(
+    methodology: Mapped[Methodology] = relationship(
         lazy="selectin",
     )
 
@@ -599,11 +599,11 @@ class Model(Base):
         nullable=False,
     )
 
-    model_type: Mapped["ModelType"] = relationship(
+    model_type: Mapped[ModelType] = relationship(
         lazy="selectin",
     )
 
-    database: Mapped["ModelingDatabase"] = relationship(
+    database: Mapped[ModelingDatabase] = relationship(
         lazy="selectin",
     )
 
@@ -650,7 +650,7 @@ class ObjectTemplate(Base):
         nullable=False,
     )
 
-    object_type: Mapped["ObjectType"] = relationship(
+    object_type: Mapped[ObjectType] = relationship(
         lazy="selectin",
     )
 

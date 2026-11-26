@@ -16,12 +16,12 @@ import math
 import uuid
 
 from sqlalchemy import text
-from rubik_studio.core import diagram_symbols_v39 as symbols_v39
+
 # RS_BPMN_SYMBOLS_V39
 from sqlalchemy.exc import IntegrityError, OperationalError
 
+from rubik_studio.core import diagram_symbols_v39 as symbols_v39
 from rubik_studio.core.database import get_session_factory
-
 
 MAX_NODES = 500
 MAX_EDGES = 2000
@@ -472,7 +472,7 @@ async def save_diagram(database_id, model_id, expected_revision, nodes, edges):
                         )
 
                 now = datetime.datetime.now(
-                    datetime.timezone.utc
+                    datetime.UTC
                 ).isoformat()
 
                 if expected_revision == 0:

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from rubik_studio.core.database import get_session_factory
-
 from rubik_studio.core.models import (
     Methodology,
     MethodologyModelType,
@@ -156,7 +155,7 @@ class ModelingService:
             database.name = new_name
 
             database.updated_at = (
-                datetime.now(timezone.utc)
+                datetime.now(UTC)
             )
 
             await session.commit()
@@ -383,13 +382,13 @@ class ModelingService:
 
     async def delete_database(self, database_id: str):
 
-        from sqlalchemy import func, select
+        from sqlalchemy import select
 
         from rubik_studio.core.models import (
             Model,
+            ModelElementBinding,
             Object,
             ObjectLink,
-            ModelElementBinding,
             ObjectType,
         )
 

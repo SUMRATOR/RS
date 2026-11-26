@@ -36,7 +36,9 @@ logger = logging.getLogger(__name__)
 def preflight_checks():
     """Проверка условий запуска."""
 
-    if sys.version_info < (3, 11):
+    # Проверка версии нужна при запуске из исходников: в pyproject
+    # указано ">=3.11", но распакованный архив запускают и старым Python.
+    if sys.version_info < (3, 11):  # noqa: UP036 — осознанная проверка при запуске
         raise RuntimeError("Требуется Python 3.11 или новее")
 
     logger.info("Предварительные проверки запуска завершены")
@@ -47,7 +49,7 @@ def register_pages():
 
     # Импорт не «для галочки»: модули страниц регистрируют @ui.page
     # побочным эффектом. Удалять как неиспользуемый нельзя.
-    from rubik_studio.ui.pages import (  # noqa: F401 — импорт ради @ui.page
+    from rubik_studio.ui.pages import (  # импорт ради регистрации @ui.page
         dashboard,
         login,
         logs_viewer,

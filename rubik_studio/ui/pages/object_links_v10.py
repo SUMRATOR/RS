@@ -1,20 +1,17 @@
 from __future__ import annotations
 
 # RS_OBJECT_LINKS_UI_V10
-
 from nicegui import ui
 
 from rubik_studio.core.repository import (
     RepositoryError,
     repo_service,
 )
-
 from rubik_studio.ui.layout import (
     confirm_dialog,
     show_error,
     show_success,
 )
-
 
 LINK_TYPES = {
     "USES": "Использует",

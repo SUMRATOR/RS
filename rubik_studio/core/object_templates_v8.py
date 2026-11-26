@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 # RS_OBJECT_TEMPLATES_SERVICE_V8
-
 from copy import deepcopy
 from datetime import date
 from decimal import Decimal, InvalidOperation
@@ -14,7 +13,6 @@ from rubik_studio.core.audit_logger import audit
 from rubik_studio.core.database import get_session_factory
 from rubik_studio.core.models import ObjectTemplate, ObjectType
 from rubik_studio.core.repository import RepositoryError, repo_service
-
 
 FIELD_TYPES = {
     "string": "Строка",

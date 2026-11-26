@@ -24,7 +24,6 @@ from rubik_studio.core.models import (
 )
 from rubik_studio.ui.pages.diagram_editor_v16 import open_model_editor
 
-
 CATEGORY_CODE = "RS_EXPERIMENTAL"
 TYPE_CODE = "RS_EXPERIMENTAL_CANVAS_V22"
 TYPE_STATUS = "NOT_IMPLEMENTED"  # RS_V22_STATUS_FIX

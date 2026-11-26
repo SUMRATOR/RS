@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import shutil
 import sqlite3
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import AsyncIterator
 
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -161,6 +161,7 @@ async def init_db() -> None:
     # RS_V14_AUTO_INIT_V1
     if engine.url.get_backend_name() == "sqlite":
         import asyncio
+
         from rubik_studio.core.diagram_v14_auto_init import ensure_v14
         await asyncio.to_thread(
             ensure_v14, engine.url.database
@@ -173,7 +174,7 @@ async def _seed_data() -> None:
     from sqlalchemy import select
 
     from rubik_studio.auth.users import hash_password
-    from rubik_studio.core.models import ObjectType, User, Methodology
+    from rubik_studio.core.models import Methodology, ObjectType, User
 
     factory = get_session_factory()
     async with factory() as session:
