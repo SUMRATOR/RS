@@ -6,16 +6,17 @@ RS — RUBIK STUDIO
 import argparse
 import asyncio
 import logging
-import shutil
 import sys
+
+# RS_BRANDING_STATIC_V1
+from pathlib import Path as _rs_branding_Path
 
 from nicegui import app, ui
 
 from rubik_studio.config import config
 from rubik_studio.core.database import init_db
-
-# RS_BRANDING_STATIC_V1
-from pathlib import Path as _rs_branding_Path
+from rubik_studio.ui.branding import full_logo_url
+from rubik_studio.ui.theme import current_palette
 
 _rs_branding_assets = (
     _rs_branding_Path(__file__).resolve().parent
@@ -44,11 +45,13 @@ def preflight_checks():
 def register_pages():
     """Регистрация страниц интерфейса."""
 
-    from rubik_studio.ui.pages import (
+    # Импорт не «для галочки»: модули страниц регистрируют @ui.page
+    # побочным эффектом. Удалять как неиспользуемый нельзя.
+    from rubik_studio.ui.pages import (  # noqa: F401 — импорт ради @ui.page
         dashboard,
         login,
-        repository,
         logs_viewer,
+        repository,
         settings,
     )
 
@@ -66,7 +69,7 @@ def rubik_home_page():
 
     # RS_BRANDING_HOME_V1
     ui.image(
-        '/rs-branding/rubik_logo.png'
+        full_logo_url(current_palette().name)
     ).style(
         'width: 180px; '
         'max-width: 60vw; '

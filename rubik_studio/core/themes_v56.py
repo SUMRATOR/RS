@@ -54,6 +54,13 @@ THEME_INFO: dict[str, dict[str, str]] = {
 }
 
 
+# Фон поля диаграммы. Одинаков во всех темах осознанно: цвета символов BPMN
+# (bpmn_shapes_v55.COLOR) рассчитаны именно на этот фон и по требованию
+# пользователя от темы не зависят. Тема меняет интерфейс вокруг поля,
+# но не перекрашивает нотацию.
+NOTATION_CANVAS_BG = "#17202C"
+
+
 @dataclass
 class ThemePalette:
     """Набор цветовых токенов одной темы.
@@ -119,9 +126,9 @@ LIGHT = ThemePalette(
     success="#2F6B3C",
     warning="#8A5A00",
     danger="#A32B2B",
-    canvas_bg="#FBF8F2",
-    canvas_grid="#E7DFD1",
-    canvas_node="#FFFFFF",
+    canvas_bg=NOTATION_CANVAS_BG,
+    canvas_grid="#252D39",   # NOTATION_CANVAS_BG, осветлённый на 6%
+    canvas_node=NOTATION_CANVAS_BG,
     canvas_edge="#7A6E60",
 )
 
@@ -139,9 +146,9 @@ DARK = ThemePalette(
     success="#4ED6A0",
     warning="#FFC857",
     danger="#FF8A8A",
-    canvas_bg="#17202C",
-    canvas_grid="#1D2735",
-    canvas_node="#1E2B45",
+    canvas_bg=NOTATION_CANVAS_BG,
+    canvas_grid="#252D39",   # NOTATION_CANVAS_BG, осветлённый на 6%
+    canvas_node=NOTATION_CANVAS_BG,
     canvas_edge="#8FA3BF",
 )
 
@@ -159,9 +166,9 @@ HACKER = ThemePalette(
     success="#39FF88",
     warning="#D7FF5A",
     danger="#FF6B6B",
-    canvas_bg="#040806",
-    canvas_grid="#0C1810",
-    canvas_node="#0A1510",
+    canvas_bg=NOTATION_CANVAS_BG,
+    canvas_grid="#252D39",   # NOTATION_CANVAS_BG, осветлённый на 6%
+    canvas_node=NOTATION_CANVAS_BG,
     canvas_edge="#39FF88",
     font_family="'JetBrains Mono', 'Consolas', 'Courier New', monospace",
 )
@@ -297,9 +304,9 @@ def custom_palette(accent: str = "#7C5CFF", background: str = "#14121D") -> Them
         success="#4ED6A0",
         warning="#FFC857",
         danger="#FF8A8A",
-        canvas_bg=mix(background, "#000000", 0.25),
-        canvas_grid=mix(background, "#FFFFFF", 0.06),
-        canvas_node=surface,
+        canvas_bg=NOTATION_CANVAS_BG,
+        canvas_grid=mix(NOTATION_CANVAS_BG, "#FFFFFF", 0.06),
+        canvas_node=NOTATION_CANVAS_BG,
         canvas_edge=mix(accent, "#FFFFFF", 0.25),
     )
 

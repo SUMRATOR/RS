@@ -8,6 +8,7 @@ from nicegui import ui
 from rubik_studio import __version__
 from rubik_studio.auth.middleware import current_user, logout_user
 from rubik_studio.config import config
+from rubik_studio.ui.branding import logo
 from rubik_studio.ui.theme import apply_theme
 
 NAV_ITEMS = [
@@ -74,9 +75,7 @@ def create_header() -> None:
     user = current_user()
     with ui.header().classes("items-center justify-between px-4 rs-header"):
         with ui.row().classes("items-center gap-2"):
-            ui.image("/rs-branding/rubik_logo.png").style(
-                "width:30px; height:30px; object-fit:contain;"
-            )
+            logo(size=30)
             ui.label("RS — RUBIK STUDIO").classes("text-lg font-bold")
             ui.badge(f"v{__version__}").style(
                 "background: var(--rs-surface-alt); color: var(--rs-text);"

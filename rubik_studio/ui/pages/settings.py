@@ -19,6 +19,7 @@ from rubik_studio.core.themes_v56 import (
     parse_hex,
     to_hex,
 )
+from rubik_studio.ui.branding import logo
 from rubik_studio.ui.layout import (
     confirm_dialog,
     create_page_layout,
@@ -204,6 +205,7 @@ async def render() -> None:
 
         with ui.card().classes("w-full"):
             ui.label("О программе").classes("text-lg font-semibold")
+            logo(size=64)
             ui.label("RS — RUBIK STUDIO")
             ui.label("Версия 0.1.0")
             ui.label("Лицензия MIT")
