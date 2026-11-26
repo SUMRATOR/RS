@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import inspect
-from typing import Callable
+from collections.abc import Callable
 
 from nicegui import ui
 
 from rubik_studio import __version__
 from rubik_studio.auth.middleware import current_user, logout_user
 from rubik_studio.config import config
+from rubik_studio.ui.theme import apply_theme
 
 NAV_ITEMS = [
     ("Главная", "/", "home"),
@@ -69,34 +70,59 @@ def empty_state(
 
 
 def create_header() -> None:
+    """Шапка: цвета берутся из темы, логотип остаётся прежним."""
     user = current_user()
-    with ui.header().classes("items-center justify-between px-4 bg-primary text-white"):
+    with ui.header().classes("items-center justify-between px-4 rs-header"):
         with ui.row().classes("items-center gap-2"):
-            ui.icon("view_in_ar").classes("text-2xl")
+            ui.image("/rs-branding/rubik_logo.png").style(
+                "width:30px; height:30px; object-fit:contain;"
+            )
             ui.label("RS — RUBIK STUDIO").classes("text-lg font-bold")
-            ui.badge(f"v{__version__}")
+            ui.badge(f"v{__version__}").style(
+                "background: var(--rs-surface-alt); color: var(--rs-text);"
+            )
         with ui.row().classes("items-center gap-3"):
             mode_label = "🖥 Desktop" if config.mode == "desktop" else "🌐 Server"
-            ui.label(mode_label).classes("text-sm opacity-90")
+            ui.label(mode_label).classes("text-sm rs-muted")
             if config.auth_enabled and user:
                 ui.label(user.get("display_name", "")).classes("text-sm")
                 ui.button(
                     icon="logout", on_click=lambda: (logout_user(), ui.navigate.to("/login"))
-                ).props("flat round color=white")
+                ).props("flat round")
 
 
 def create_sidebar() -> None:
-    with ui.left_drawer(fixed=True).classes("bg-slate-50 p-2"):
+    """Боковое меню в цветах темы; текущий раздел подсвечен акцентом."""
+    from nicegui import context
+
+    current_path = ""
+    try:
+        current_path = context.client.page.path
+    except Exception:  # noqa: BLE001 — путь доступен не всегда
+        current_path = ""
+
+    with ui.left_drawer(fixed=True).classes("p-2 rs-sidebar"):
         for label, path, icon in NAV_ITEMS:
-            ui.button(label, icon=icon, on_click=lambda p=path: ui.navigate.to(p)).props(
-                "flat no-caps align=left"
-            ).classes("w-full justify-start mb-1")
+            is_active = current_path == path
+            button = ui.button(
+                label, icon=icon, on_click=lambda p=path: ui.navigate.to(p)
+            ).props("flat no-caps align=left").classes("w-full justify-start mb-1")
+            if is_active:
+                button.style(
+                    "color: var(--rs-primary); "
+                    "background: var(--rs-surface-alt); "
+                    "border-left: 3px solid var(--rs-primary);"
+                )
 
 
 def create_page_layout(title: str) -> ui.column:
+    # RS_THEMES_V56: тема применяется здесь, поэтому каждая страница,
+    # построенная через этот макет, автоматически получает выбранное
+    # пользователем оформление.
+    apply_theme()
     create_header()
     create_sidebar()
-    content = ui.column().classes("w-full max-w-6xl mx-auto p-4 gap-4")
+    content = ui.column().classes("w-full max-w-6xl mx-auto p-4 gap-4 rs-app-shell")
     with content:
         ui.label(title).classes("text-2xl font-bold")
     return content

@@ -100,6 +100,13 @@ class AppConfig:
 
     first_run_done: bool = False
 
+    # RS_THEMES_V56: оформление интерфейса.
+    # theme — light | dark | hacker | custom;
+    # theme_accent и theme_background — цвета «своей тёмной» темы.
+    theme: str = "dark"
+    theme_accent: str = "#7C5CFF"
+    theme_background: str = "#14121D"
+
     def get_db_url(self) -> str:
         if (
             self.db_type == "postgresql"

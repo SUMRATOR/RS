@@ -179,19 +179,27 @@ def _clamp_byte(value: int) -> int:
     return max(0, min(255, value))
 
 
+class ColorError(ValueError, TypeError):
+    """Некорректный цвет. Наследует и ValueError, и TypeError.
+
+    Так вызывающий код может ловить ошибку как ValueError (мусор в
+    config.json) и как TypeError (передан не тот тип), не дублируя ветки.
+    """
+
+
 def parse_hex(color: str) -> tuple[int, int, int]:
-    """``#RRGGBB`` → (r, g, b). Некорректный цвет вызывает ValueError."""
+    """``#RRGGBB`` → (r, g, b). Некорректный цвет вызывает ColorError."""
     if not isinstance(color, str):
-        raise ValueError("Цвет должен быть строкой в формате #RRGGBB")
+        raise ColorError("Цвет должен быть строкой в формате #RRGGBB")
     text = color.strip()
     if not text.startswith("#"):
         text = "#" + text
     if len(text) != 7:
-        raise ValueError("Цвет должен быть в формате #RRGGBB")
+        raise ColorError("Цвет должен быть в формате #RRGGBB")
     try:
         return tuple(int(text[i:i + 2], 16) for i in (1, 3, 5))  # type: ignore[return-value]
     except ValueError as exc:
-        raise ValueError("Цвет должен быть в формате #RRGGBB") from exc
+        raise ColorError("Цвет должен быть в формате #RRGGBB") from exc
 
 
 def to_hex(r: int, g: int, b: int) -> str:
@@ -235,14 +243,42 @@ def mix(first: str, second: str, amount: float) -> str:
     )
 
 
+# Граница «тёмности» фона: средняя яркость канала. Выше — фон уже не
+# тёмный, и пользовательская тема перестаёт быть тёмной.
+DARKNESS_LIMIT = 60.0
+
+
+def is_dark_enough(background: str) -> bool:
+    """Фон достаточно тёмный для «своей тёмной» темы."""
+    r, g, b = parse_hex(background)
+    return (r + g + b) / 3 <= DARKNESS_LIMIT
+
+
+def normalize_background(background: str) -> str:
+    """Привести фон к тёмному оттенку, сохранив выбранный тон.
+
+    Пользователь задаёт цвет-подсветку; фон остаётся тёмным в том же
+    тоне. Слишком светлый фон затемняется до предела DARKNESS_LIMIT.
+    """
+    r, g, b = parse_hex(background)
+    average = (r + g + b) / 3
+    if average <= DARKNESS_LIMIT:
+        return to_hex(r, g, b)
+
+    factor = DARKNESS_LIMIT / average
+    return to_hex(round(r * factor), round(g * factor), round(b * factor))
+
+
 def custom_palette(accent: str = "#7C5CFF", background: str = "#14121D") -> ThemePalette:
     """Пользовательская тёмная тема.
 
-    Пользователь задаёт только акцент и фон; остальные токены выводятся
-    из них, чтобы тема оставалась читаемой и не превращалась в «кашу».
+    Пользователь задаёт акцент («подсветку») и фон. Фон всегда остаётся
+    тёмным: слишком светлый приводится к тёмному оттенку того же тона.
+    Остальные токены выводятся автоматически, чтобы тема оставалась
+    читаемой и не превращалась в «кашу».
     """
     accent = to_hex(*parse_hex(accent))
-    background = to_hex(*parse_hex(background))
+    background = normalize_background(background)
 
     surface = mix(background, "#FFFFFF", 0.06)
     surface_alt = mix(background, "#FFFFFF", 0.10)
@@ -376,6 +412,42 @@ header.q-header, .q-header {{
 /* Тонкие подписи */
 .rs-muted {{
   color: var(--rs-text-muted) !important;
+}}
+
+/* Шапка и боковое меню: классы из layout.py */
+header.rs-header {{
+  background: var(--rs-surface) !important;
+  color: var(--rs-text) !important;
+  border-bottom: 1px solid var(--rs-border);
+  box-shadow: none;
+}}
+
+.rs-sidebar {{
+  background: var(--rs-surface) !important;
+  color: var(--rs-text) !important;
+  border-right: 1px solid var(--rs-border);
+}}
+
+.rs-sidebar .q-btn {{
+  color: var(--rs-text) !important;
+  justify-content: flex-start;
+}}
+
+.rs-sidebar .q-btn:hover {{
+  background: var(--rs-surface-alt) !important;
+  color: var(--rs-primary) !important;
+}}
+
+/* Приглушённые подписи внутри контента */
+.rs-app-shell .text-gray-500,
+.rs-app-shell .text-gray-400,
+.rs-app-shell .text-slate-400 {{
+  color: var(--rs-text-muted) !important;
+}}
+
+/* Ссылки и акцентные подписи */
+a, .rs-accent {{
+  color: var(--rs-primary);
 }}
 
 /* Полотно диаграммы */

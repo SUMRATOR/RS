@@ -93,12 +93,12 @@ def test_border_is_visible_but_not_loud(theme):
 def test_light_theme_is_warm_not_blue():
     """Светлая тема тёплая: красного больше синего, фон не белый и не синий."""
     palette = palette_for(THEME_LIGHT)
-    r, g, b = parse_hex(palette.bg)
+    r, _g, b = parse_hex(palette.bg)
     assert r > b, "фон светлой темы должен быть тёплым (R > B)"
     assert b < 235, "фон не должен быть чисто-белым/голубоватым"
     assert palette.bg != "#FFFFFF"
 
-    primary_r, primary_g, primary_b = parse_hex(palette.primary)
+    primary_r, _primary_g, primary_b = parse_hex(palette.primary)
     assert primary_r > primary_b, "акцент светлой темы должен быть тёплым"
 
 
