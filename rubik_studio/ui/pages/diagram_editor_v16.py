@@ -31,6 +31,9 @@ from rubik_studio.core.bpmn_catalog_v55 import (  # noqa: E402 — подклю�
 from rubik_studio.core.bpmn_catalog_v55 import (  # noqa: E402 — подключается отдельным блоком
     by_groups as bpmn_groups_v55,
 )
+from rubik_studio.core.bpmn_events_v58 import (  # noqa: E402 — подключается отдельным блоком
+    is_boundary as is_boundary_event_v58,
+)
 from rubik_studio.core.bpmn_shapes_v55 import (  # noqa: E402 — подключается отдельным блоком
     shape_markup as bpmn_shape_v55,
 )
@@ -42,6 +45,9 @@ from rubik_studio.core.diagram_storage_v15 import (  # noqa: E402 — подкл
     DiagramStorageError,
     load_diagram,
     save_diagram,
+)
+from rubik_studio.ui.bpmn_event_palette_v58 import (  # noqa: E402 — подключается отдельным блоком
+    render_event_variants_palette,
 )
 from rubik_studio.ui.pages.canvas_draft_v11 import (  # noqa: E402 — подключается отдельным блоком
     open_canvas_draft as open_technical_draft,
@@ -545,7 +551,7 @@ def _bpmn_shape_markup_v41(kind, name):
 
 
 # RS_BPMN_PALETTE_V55
-def render_bpmn_palette_v55(on_pick):
+def render_bpmn_palette_v55(on_pick, on_event_pick=None):
     """Палитра символов BPMN для боковой панели редактора.
 
     Группы: события, работа, ветвление, данные, контейнеры.
@@ -664,6 +670,34 @@ def render_bpmn_palette_v55(on_pick):
                         help_button_v55.tooltip("Что это и когда применять")
 
     ui.separator()
+
+    # RS_BPMN_EVENT_VARIANTS_V58
+    # Палитра вариантов событий: вкладки «Начальное / Промежуточное /
+    # Граничное / Конечное» и выбор подтипа. Граничные события крепятся
+    # к границе задачи — редактор создаёт их в режиме привязки.
+    if on_event_pick is not None:
+        render_event_variants_palette(
+            on_pick=on_event_pick,
+            on_hint=show_hint_v55,
+        )
+
+    ui.separator()
+
+
+def _insert_event_v58(kind, insert_symbol) -> None:
+    """Добавить событие из палитры вариантов.
+
+    Для граничных событий сразу объясняем, что они крепятся к задаче:
+    без этого пользователь ставит их на поле и не понимает, почему
+    событие «висит» отдельно.
+    """
+    if is_boundary_event_v58(kind):
+        ui.notify(
+            "Граничное событие крепится к границе задачи: "
+            "выделите задачу на схеме, затем выберите событие.",
+            type="info",
+        )
+    insert_symbol(kind)
 
 
 async def open_model_editor(
@@ -3854,7 +3888,12 @@ async def open_model_editor(
 
                 # RS_BPMN_PALETTE_V55
                 # Палитра символов BPMN: см. render_bpmn_palette_v55.
-                render_bpmn_palette_v55(add_symbol_v39)
+                render_bpmn_palette_v55(
+                    add_symbol_v39,
+                    on_event_pick=lambda kind: _insert_event_v58(
+                        kind, add_symbol_v39
+                    ),
+                )
 
                 ui.label("Размещения").style(
                     "font-size:14px; font-weight:600;"

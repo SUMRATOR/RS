@@ -32,6 +32,7 @@ COLOR = {
     "gateway": "#FFC857",
     "data": "#BFD4EE",
     "lane": "#8FA3BF",
+    "boundary": "#C4B5FD",  # граничные события: сиреневый пунктир
 }
 
 # Базовый размер полотна символа. Поле масштабирует его через viewBox.
@@ -78,6 +79,16 @@ _PICTO = {
         'stroke-width="2"/>'
     ),
     "terminate": '<circle cx="0" cy="0" r="13" fill="{c}"/>',
+    "cancel": (
+        '<path d="M-9 -9 L9 9 M9 -9 L-9 9" fill="none" stroke="{c}" '
+        'stroke-width="3" stroke-linecap="round"/>'
+    ),
+    "parallel_multi": (
+        '<path d="M-11 0 H11 M0 -11 V11" fill="none" stroke="{c}" '
+        'stroke-width="2.6" stroke-linecap="round"/>'
+        '<path d="M-11 -11 L11 11 M11 -11 L-11 11" fill="none" stroke="{c}" '
+        'stroke-width="1.4" opacity="0.75"/>'
+    ),
     "multi": (
         '<path d="M0 -13 L3 -4 L13 -4 L5 2 L8 11 L0 6 L-8 11 L-5 2 L-13 -4 '
         'L-3 -4 Z" fill="none" stroke="{c}" stroke-width="1.8"/>'
@@ -107,6 +118,25 @@ _EVENT_SPEC = {
     "END_MESSAGE": ("thick", "message"),
     "END_ERROR": ("thick", "error"),
     "END_SIGNAL": ("thick", "signal"),
+    # V58: составные, отменяющие и граничные события
+    "START_MULTIPLE": ("thin", "multi"),
+    "START_PARALLEL_MULTIPLE": ("thin", "parallel_multi"),
+    "INTERMEDIATE_MULTIPLE": ("mid", "multi"),
+    "INTERMEDIATE_PARALLEL_MULTIPLE": ("mid", "parallel_multi"),
+    "END_ESCALATION": ("thick", "escalation"),
+    "END_COMPENSATION": ("thick", "compensation"),
+    "END_CANCEL": ("thick", "cancel"),
+    "END_MULTIPLE": ("thick", "multi"),
+    "BOUNDARY_MESSAGE": ("boundary", "message"),
+    "BOUNDARY_TIMER": ("boundary", "timer"),
+    "BOUNDARY_ESCALATION": ("boundary", "escalation"),
+    "BOUNDARY_CONDITIONAL": ("boundary", "condition"),
+    "BOUNDARY_ERROR": ("boundary", "error"),
+    "BOUNDARY_CANCEL": ("boundary", "cancel"),
+    "BOUNDARY_COMPENSATION": ("boundary", "compensation"),
+    "BOUNDARY_SIGNAL": ("boundary", "signal"),
+    "BOUNDARY_MULTIPLE": ("boundary", "multi"),
+    "BOUNDARY_PARALLEL_MULTIPLE": ("boundary", "parallel_multi"),
 }
 
 # Шлюз → маркер внутри ромба.
@@ -175,10 +205,43 @@ _TASK_PICTO = {
 }
 
 
-def _event_svg(kind: str) -> str:
+def _event_svg(kind: str, boundary: bool | None = None) -> str:
+    """Символ события.
+
+    ``boundary=True`` рисует граничное событие: двойной пунктирный контур,
+    как принято в BPMN, — его крепят к границе задачи. Толщина и цвет
+    контура при этом говорят о положении: начальное, промежуточное,
+    конечное.
+    """
     contour, picto = _EVENT_SPEC[kind]
-    stroke = {"thin": 2.4, "mid": 2.4, "thick": 5.5}[contour]
-    color = {"thin": COLOR["start"], "mid": COLOR["mid"], "thick": COLOR["end"]}[contour]
+    if boundary is None:
+        boundary = contour == "boundary"
+
+    stroke = {"thin": 2.4, "mid": 2.4, "thick": 5.5, "boundary": 2.4}[contour]
+    color = {
+        "thin": COLOR["start"],
+        "mid": COLOR["mid"],
+        "thick": COLOR["end"],
+        "boundary": COLOR["boundary"],
+    }.get(contour, COLOR["mid"])
+
+    if boundary:
+        # Два пунктирных круга: внешний и внутренний, как в BPMN 2.0.
+        # Цвет — всегда цвет граничных событий: в нотации положение у них
+        # одно, а тип (прерывающее / нет) показывается линией и пиктограммой.
+        dash = COLOR["boundary"]
+        return (
+            f'<circle cx="0" cy="0" r="{EVENT_R}" fill="{COLOR["panel"]}" '
+            f'stroke="{dash}" stroke-width="2.2" stroke-dasharray="4 3"/>'
+            f'<circle cx="0" cy="0" r="{EVENT_R - 5}" fill="none" '
+            f'stroke="{dash}" stroke-width="1.6" stroke-dasharray="4 3"/>'
+            + (
+                f'<g transform="translate(0,-1) scale(0.68)">'
+                f'{_PICTO[picto].format(c=COLOR["text"])}</g>'
+                if picto
+                else ""
+            )
+        )
 
     body = (
         f'<circle cx="0" cy="0" r="{EVENT_R}" fill="{COLOR["panel"]}" '
