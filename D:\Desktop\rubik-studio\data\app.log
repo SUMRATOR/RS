@@ -1,0 +1,8 @@
+2026-11-26 18:19:41 | INFO     | main:preflight_checks:41 | Предварительные проверки запуска завершены
+2026-11-26 18:19:41 | INFO     | main:register_pages:59 | Модули интерфейса загружены
+2026-11-26 18:19:41 | INFO     | database:init_db:169 | База данных инициализирована: sqlite+aiosqlite:///D:\Desktop\rubik-studio\data\rubik_studio.db
+2026-11-26 18:19:41 | INFO     | main:startup:173 | База данных инициализирована
+2026-11-26 18:20:10 | INFO     | main:preflight_checks:41 | Предварительные проверки запуска завершены
+2026-11-26 18:20:10 | INFO     | main:register_pages:59 | Модули интерфейса загружены
+2026-11-26 18:20:10 | INFO     | database:init_db:169 | База данных инициализирована: sqlite+aiosqlite:///D:\Desktop\rubik-studio\data\rubik_studio.db
+2026-11-26 18:20:10 | INFO     | main:startup:173 | База данных инициализирована

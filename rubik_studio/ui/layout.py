@@ -12,6 +12,7 @@ from rubik_studio.config import config
 NAV_ITEMS = [
     ("Главная", "/", "home"),
     ("Репозиторий", "/repository", "inventory_2"),
+    ("Базы данных", "/modeling-databases", "storage"),
     ("Моделирование", "/modeler", "account_tree"),
     ("Process Mining", "/mining", "insights"),
     ("Задачи и процессы", "/bpms", "task_alt"),
@@ -99,3 +100,5 @@ def create_page_layout(title: str) -> ui.column:
     with content:
         ui.label(title).classes("text-2xl font-bold")
     return content
+
+# RS_NAVIGATION_ATTRIBUTES_V4

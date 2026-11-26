@@ -53,6 +53,7 @@ class AuditLogger:
         username: str = "local",
         ip_address: str = "127.0.0.1",
         details: dict[str, Any] | None = None,
+        database_id: str | None = None,
     ) -> None:
         if not config.audit_log_enabled:
             return
@@ -72,6 +73,7 @@ class AuditLogger:
                     entity_id=entity_id,
                     entity_name=entity_name,
                     details=details or {},
+                    database_id=database_id,
                 )
                 session.add(entry)
                 await session.commit()
@@ -149,3 +151,5 @@ class AuditLogger:
 
 
 audit = AuditLogger()
+
+# RS_REPOSITORY_ISOLATION_V3

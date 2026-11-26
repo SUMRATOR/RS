@@ -9,6 +9,8 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
+    CheckConstraint,
     Index,
     Integer,
     String,
@@ -34,43 +36,153 @@ def _now() -> datetime:
 class ObjectType(Base):
     __tablename__ = "object_types"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
-    name: Mapped[str] = mapped_column(String(200), nullable=False)
-    icon: Mapped[str] = mapped_column(String(50), default="circle")
-    color: Mapped[str] = mapped_column(String(7), default="#9E9E9E")
+    __table_args__ = (
+        UniqueConstraint("id", "database_id"),
+    )
 
-    objects: Mapped[list["Object"]] = relationship(back_populates="type")
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=_uuid
+    )
+
+    code: Mapped[str] = mapped_column(
+        String(50), unique=True, nullable=False
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(200), nullable=False
+    )
+
+    icon: Mapped[str] = mapped_column(
+        String(50), default="circle"
+    )
+
+    color: Mapped[str] = mapped_column(
+        String(7), default="#9E9E9E"
+    )
+
+    database_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("modeling_databases.id"),
+        nullable=True,
+    )
+
+    is_system: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False
+    )
+
+    objects: Mapped[list["Object"]] = relationship(
+        back_populates="type"
+    )
 
 
 class Object(Base):
     __tablename__ = "objects"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    type_id: Mapped[str] = mapped_column(String(36), ForeignKey("object_types.id"))
-    name: Mapped[str] = mapped_column(String(500), nullable=False)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    attributes: Mapped[dict] = mapped_column(JSON, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=_now, onupdate=_now
+    __table_args__ = (
+        UniqueConstraint("id", "database_id"),
+        Index(
+            "ix_objects_database_type_name",
+            "database_id",
+            "type_id",
+            "name",
+        ),
     )
 
-    type: Mapped["ObjectType"] = relationship(back_populates="objects", lazy="selectin")
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=_uuid
+    )
+
+    database_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("modeling_databases.id"),
+        nullable=False,
+    )
+
+    type_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("object_types.id"),
+        nullable=False,
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(500), nullable=False
+    )
+
+    description: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )
+
+    attributes: Mapped[dict] = mapped_column(
+        JSON, default=dict
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=_now,
+        onupdate=_now,
+    )
+
+    type: Mapped["ObjectType"] = relationship(
+        back_populates="objects",
+        lazy="selectin",
+    )
 
 
 class ObjectLink(Base):
     __tablename__ = "object_links"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    __table_args__ = (
+        UniqueConstraint(
+            "database_id",
+            "source_id",
+            "target_id",
+            "link_type",
+        ),
+        ForeignKeyConstraint(
+            ["source_id", "database_id"],
+            ["objects.id", "objects.database_id"],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["target_id", "database_id"],
+            ["objects.id", "objects.database_id"],
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "source_id <> target_id",
+            name="ck_object_link_not_self",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=_uuid
+    )
+
+    database_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("modeling_databases.id"),
+        nullable=False,
+    )
+
     source_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("objects.id", ondelete="CASCADE")
+        String(36), nullable=False
     )
+
     target_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("objects.id", ondelete="CASCADE")
+        String(36), nullable=False
     )
-    link_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    attributes: Mapped[dict] = mapped_column(JSON, default=dict)
+
+    link_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )
+
+    attributes: Mapped[dict] = mapped_column(
+        JSON, default=dict
+    )
 
 
 # ── BPMN (используется с Этапа 2) ───────────────────────────────────────────
@@ -92,14 +204,41 @@ class BpmnModel(Base):
 
 class ModelElementBinding(Base):
     __tablename__ = "model_element_bindings"
-    __table_args__ = (UniqueConstraint("model_id", "bpmn_element_id"),)
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    model_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("bpmn_models.id", ondelete="CASCADE")
+    __table_args__ = (
+        UniqueConstraint("model_id", "bpmn_element_id"),
+        ForeignKeyConstraint(
+            ["object_id", "database_id"],
+            ["objects.id", "objects.database_id"],
+        ),
+        ForeignKeyConstraint(
+            ["model_id", "database_id"],
+            ["models.id", "models.database_id"],
+            ondelete="CASCADE",
+        ),
     )
-    bpmn_element_id: Mapped[str] = mapped_column(String(200), nullable=False)
-    object_id: Mapped[str] = mapped_column(String(36), ForeignKey("objects.id"))
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=_uuid
+    )
+
+    database_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("modeling_databases.id"),
+        nullable=False,
+    )
+
+    model_id: Mapped[str] = mapped_column(
+        String(36), nullable=False
+    )
+
+    bpmn_element_id: Mapped[str] = mapped_column(
+        String(200), nullable=False
+    )
+
+    object_id: Mapped[str] = mapped_column(
+        String(36), nullable=False
+    )
 
 
 # ── Process Mining (используется с Этапа 3) ─────────────────────────────────
@@ -119,7 +258,7 @@ class Event(Base):
     __tablename__ = "events"
     __table_args__ = (Index("ix_events_log_case_ts", "log_id", "case_id", "timestamp"),)
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, 'sqlite'), primary_key=True, autoincrement=True)
     log_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("event_logs.id", ondelete="CASCADE")
     )
@@ -152,7 +291,7 @@ class AuditLog(Base):
         Index("ix_audit_entity", "entity_type", "entity_id"),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, 'sqlite'), primary_key=True, autoincrement=True)
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, index=True
     )
@@ -164,6 +303,10 @@ class AuditLog(Base):
     entity_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     entity_name: Mapped[str] = mapped_column(String(500), default="")
     details: Mapped[dict] = mapped_column(JSON, default=dict)
+
+    database_id: Mapped[str | None] = mapped_column(
+        String(36), nullable=True
+    )
 
 
 # ── BPMS (используется с Этапа 4) ───────────────────────────────────────────
@@ -219,9 +362,295 @@ class Task(Base):
 class TaskHistory(Base):
     __tablename__ = "task_history"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, 'sqlite'), primary_key=True, autoincrement=True)
     task_id: Mapped[str] = mapped_column(String(36), ForeignKey("tasks.id"))
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     action: Mapped[str] = mapped_column(String(50))
     details: Mapped[dict] = mapped_column(JSON, default=dict)
+
+# ============================================================
+# RS — ЛОГИЧЕСКИЕ БАЗЫ МОДЕЛИРОВАНИЯ
+# ============================================================
+
+
+class Methodology(Base):
+    __tablename__ = "methodologies"
+
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        default=_uuid,
+    )
+
+    code: Mapped[str] = mapped_column(
+        String(50),
+        unique=True,
+        nullable=False,
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(200),
+        nullable=False,
+    )
+
+    description: Mapped[str] = mapped_column(
+        Text,
+        default="",
+        nullable=False,
+    )
+
+
+class ModelCategory(Base):
+    __tablename__ = "model_categories"
+
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        default=_uuid,
+    )
+
+    code: Mapped[str] = mapped_column(
+        String(100),
+        unique=True,
+        nullable=False,
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(200),
+        nullable=False,
+    )
+
+    description: Mapped[str] = mapped_column(
+        Text,
+        default="",
+        nullable=False,
+    )
+
+
+class ModelType(Base):
+    __tablename__ = "model_types"
+
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        default=_uuid,
+    )
+
+    code: Mapped[str] = mapped_column(
+        String(100),
+        unique=True,
+        nullable=False,
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(200),
+        nullable=False,
+    )
+
+    category_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("model_categories.id"),
+        nullable=False,
+    )
+
+    description: Mapped[str] = mapped_column(
+        Text,
+        default="",
+        nullable=False,
+    )
+
+    keywords: Mapped[str] = mapped_column(
+        Text,
+        default="",
+        nullable=False,
+    )
+
+    editor_status: Mapped[str] = mapped_column(
+        String(30),
+        default="NOT_IMPLEMENTED",
+        nullable=False,
+    )
+
+    is_system: Mapped[int] = mapped_column(
+        Integer,
+        default=1,
+        nullable=False,
+    )
+
+    category: Mapped["ModelCategory"] = relationship(
+        lazy="selectin",
+    )
+
+
+class MethodologyModelType(Base):
+    __tablename__ = "methodology_model_types"
+
+    methodology_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey(
+            "methodologies.id",
+            ondelete="CASCADE",
+        ),
+        primary_key=True,
+    )
+
+    model_type_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey(
+            "model_types.id",
+            ondelete="CASCADE",
+        ),
+        primary_key=True,
+    )
+
+
+class ModelingDatabase(Base):
+    __tablename__ = "modeling_databases"
+
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        default=_uuid,
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(500),
+        nullable=False,
+    )
+
+    description: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    methodology_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("methodologies.id"),
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=_now,
+        nullable=False,
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=_now,
+        onupdate=_now,
+        nullable=False,
+    )
+
+    methodology: Mapped["Methodology"] = relationship(
+        lazy="selectin",
+    )
+
+
+class Model(Base):
+    __tablename__ = "models"
+
+    __table_args__ = (
+        UniqueConstraint("id", "database_id"),
+    )
+
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        default=_uuid,
+    )
+
+    database_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey(
+            "modeling_databases.id",
+            ondelete="RESTRICT",
+        ),
+        nullable=False,
+    )
+
+    model_type_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("model_types.id"),
+        nullable=False,
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(500),
+        nullable=False,
+    )
+
+    description: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=_now,
+        nullable=False,
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=_now,
+        onupdate=_now,
+        nullable=False,
+    )
+
+    model_type: Mapped["ModelType"] = relationship(
+        lazy="selectin",
+    )
+
+    database: Mapped["ModelingDatabase"] = relationship(
+        lazy="selectin",
+    )
+
+# RS_REPOSITORY_ISOLATION_V3
+
+
+# RS_OBJECT_TEMPLATES_MODEL_V8
+
+class ObjectTemplate(Base):
+    """Общий трафарет для создания независимых объектов."""
+
+    __tablename__ = "object_templates"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=_uuid
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(200), nullable=False
+    )
+
+    description: Mapped[str] = mapped_column(
+        Text, default="", nullable=False
+    )
+
+    type_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("object_types.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+
+    fields: Mapped[list] = mapped_column(
+        JSON, default=list, nullable=False
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=_now,
+        onupdate=_now,
+        nullable=False,
+    )
+
+    object_type: Mapped["ObjectType"] = relationship(
+        lazy="selectin",
+    )
+

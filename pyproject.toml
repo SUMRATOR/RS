@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rubik-studio"
+version = "0.1.0"
+description = "RS — RUBIK STUDIO: Model. Mine. Automate."
+requires-python = ">=3.11"
+license = {text = "MIT"}
+dependencies = [
+    "nicegui",
+    "sqlalchemy>=2.0",
+    "aiosqlite",
+    "passlib[bcrypt]",
+    "pywebview",
+    "alembic",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+    "mypy",
+]
+
+[tool.setuptools.packages.find]
+include = ["rubik_studio*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.mypy]
+python_version = "3.11"

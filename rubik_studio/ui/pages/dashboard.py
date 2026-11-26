@@ -3,43 +3,69 @@ from __future__ import annotations
 from nicegui import ui
 
 from rubik_studio.core.audit_logger import audit
-from rubik_studio.core.repository import repo_service
+from rubik_studio.core.repository import RepositoryError, repo_service
 from rubik_studio.ui.layout import create_page_layout, empty_state
 
 
 async def render() -> None:
     content = create_page_layout("Главная")
     with content:
-        objects = await repo_service.list_objects()
+        # Объекты живут внутри логических баз моделирования, поэтому
+        # считаем суммарно по всем базам. Если баз ещё нет — репозиторий пуст.
+        databases = await repo_service.list_databases()
         types = await repo_service.list_types()
         stats = await audit.get_stats()
 
+        objects = []
+        for database in databases:
+            try:
+                objects.extend(await repo_service.list_objects(database_id=database.id))
+            except RepositoryError:
+                # Пустая/недоступная база не должна ломать главную страницу.
+                continue
+
         with ui.row().classes("w-full gap-4"):
             _stat_card("Объектов в репозитории", len(objects), "inventory_2", "bg-blue-50")
+            _stat_card("Баз моделирования", len(databases), "storage", "bg-orange-50")
             _stat_card("Типов объектов", len(types), "category", "bg-purple-50")
             _stat_card("Записей в аудит-логе", stats.get("total", 0), "history", "bg-green-50")
 
         ui.separator()
 
+        if not databases:
+            empty_state(
+                "storage",
+                "Логических баз пока нет. Создайте первую базу моделирования, "
+                "чтобы затем добавлять в неё объекты репозитория.",
+                action_label="Создать базу моделирования",
+                on_action=lambda: ui.navigate.to("/modeling-databases"),
+            )
+            return
+
         if not objects:
             empty_state(
                 "inventory_2",
-                "Репозиторий пуст. Создайте первый объект (роль, систему, документ или процесс), "
-                "чтобы начать работу.",
+                "Репозиторий пуст. Создайте первый объект (роль, систему, документ "
+                "или процесс), чтобы начать работу.",
                 action_label="Перейти в репозиторий",
                 on_action=lambda: ui.navigate.to("/repository"),
             )
-        else:
-            ui.label("Последние объекты").classes("text-lg font-semibold mt-4")
-            recent = sorted(objects, key=lambda o: o.updated_at, reverse=True)[:10]
-            with ui.list().props("bordered separator").classes("w-full"):
-                for obj in recent:
-                    with ui.item():
-                        with ui.item_section().props("avatar"):
-                            ui.icon(obj.type.icon if obj.type else "circle")
-                        with ui.item_section():
-                            ui.item_label(obj.name)
-                            ui.item_label(obj.type.name if obj.type else "").props("caption")
+            return
+
+        ui.label("Последние объекты").classes("text-lg font-semibold mt-4")
+        recent = sorted(
+            objects,
+            key=lambda o: o.updated_at or o.created_at,
+            reverse=True,
+        )[:10]
+        with ui.list().props("bordered separator").classes("w-full"):
+            for obj in recent:
+                with ui.item():
+                    with ui.item_section().props("avatar"):
+                        ui.icon(obj.type.icon if obj.type else "circle")
+                    with ui.item_section():
+                        ui.item_label(obj.name)
+                        ui.item_label(obj.type.name if obj.type else "").props("caption")
 
 
 def _stat_card(label: str, value: int, icon: str, bg: str) -> None:
