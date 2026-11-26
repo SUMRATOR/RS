@@ -10,7 +10,7 @@ requires-python = ">=3.11"
 license = {text = "MIT"}
 dependencies = [
     "nicegui",
-    "sqlalchemy>=2.0",
+    "sqlalchemy[asyncio]>=2.0",
     "aiosqlite",
     "passlib[bcrypt]",
     "pywebview",

@@ -1,6 +1,6 @@
 # ── Базовые зависимости (нужны уже на Этапе 1) ──────────────────────────────
 nicegui>=2.10
-sqlalchemy>=2.0
+sqlalchemy[asyncio]>=2.0
 aiosqlite>=0.19
 passlib[bcrypt]>=1.7
 pywebview>=5.0
