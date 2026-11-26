@@ -9,18 +9,34 @@
 """
 
 from __future__ import annotations
-# RS_BPMN_LANE_RENDER_V52
-from rubik_studio.core.diagram_symbols_v39 import SYMBOLS as SYMBOLS_V39
-# RS_BPMN_SYMBOLS_V39
 
+# RS_BPMN_SYMBOLS_V39
 import uuid
 
 from nicegui import ui
 from sqlalchemy import text
 
 from rubik_studio.core.database import get_session_factory
+
+# RS_BPMN_LANE_RENDER_V52
+from rubik_studio.core.diagram_symbols_v39 import SYMBOLS as SYMBOLS_V39
 from rubik_studio.core.repository import RepositoryService
+
 repository_service = RepositoryService()
+# RS_BPMN_SHAPES_V55: единый источник разметки символов —
+# палитра, поле и колесо рисуют символ одинаково.
+from rubik_studio.core.bpmn_catalog_v55 import (
+    CATALOG as BPMN_CATALOG_V55,
+)
+from rubik_studio.core.bpmn_catalog_v55 import (
+    by_groups as bpmn_groups_v55,
+)
+from rubik_studio.core.bpmn_shapes_v55 import (
+    shape_markup as bpmn_shape_v55,
+)
+from rubik_studio.core.bpmn_shapes_v55 import (
+    thumbnail_svg as bpmn_thumb_v55,
+)
 from rubik_studio.core.diagram_storage_v15 import (
     DiagramConflict,
     DiagramStorageError,
@@ -32,6 +48,8 @@ from rubik_studio.ui.pages.canvas_draft_v11 import (
 )
 from rubik_studio.ui.pages.diagram_smart_links_v23 import (
     key as smart_link_key,
+)
+from rubik_studio.ui.pages.diagram_smart_links_v23 import (
     render_svg as render_smart_links_svg,
 )
 
@@ -505,6 +523,147 @@ def _bpmn_shape_markup_v41(kind, name):
         )
 
     return _bpmn_shape_before_v49(kind, name)
+
+
+# RS_BPMN_SHAPES_V55
+# Полный набор событий и шлюзов рисуется единым модулем bpmn_shapes_v55:
+# палитра, поле диаграммы и колесо V используют одну геометрию.
+# Старые коды V39 сохранены — ранее сохранённые диаграммы открываются как есть.
+_bpmn_shape_before_v55 = _bpmn_shape_markup_v41
+
+
+def _bpmn_shape_markup_v41(kind, name):
+    """Разметка символа BPMN: 43 типа вместо 13.
+
+    Дорожка (LANE) сохраняет реализацию V49: её рамка растягивается по
+    размеру DOM-элемента, а не по viewBox.
+    """
+    if kind == "LANE" or kind not in BPMN_CATALOG_V55:
+        return _bpmn_shape_before_v55(kind, name)
+
+    return bpmn_shape_v55(kind, name)
+
+
+# RS_BPMN_PALETTE_V55
+def render_bpmn_palette_v55(on_pick):
+    """Палитра символов BPMN для боковой панели редактора.
+
+    Группы: события, работа, ветвление, данные, контейнеры.
+    Каждый символ — миниатюра, подпись «термин (пояснение)» и две кнопки:
+    добавить на схему и открыть карточку-подсказку.
+
+    Вынесено отдельной функцией, чтобы проверяться без запуска редактора.
+    """
+    # RS_BPMN_PALETTE_V55
+    # Палитра символов BPMN по группам: события, работа,
+    # ветвление, данные. Подпись — «термин (пояснение)»,
+    # для каждого символа доступна карточка-подсказка.
+    # Существующее радиальное колесо по клавише V сохранено.
+    ui.label("Символы").style(
+        "font-size:16px; font-weight:600;"
+    )
+
+    ui.label(
+        "Нажмите на символ, чтобы добавить его на схему. "
+        "Подробное описание — в подсказке под названием."
+    ).style("font-size:12px; color:#94a3b8; line-height:15px;")
+
+    def insert_symbol_v55(kind):
+        on_pick(kind)
+
+    def show_hint_v55(kind):
+        info = BPMN_CATALOG_V55.get(kind) or {}
+        with ui.dialog() as hint_dialog, ui.card().style(
+            "width:32rem; max-width:92vw; gap:10px; padding:18px;"
+        ):
+            with ui.row().classes("items-center gap-3 no-wrap"):
+                ui.html(bpmn_thumb_v55(kind, 56), sanitize=False)
+                ui.label(info.get("label", kind)).style(
+                    "font-size:16px; font-weight:600; line-height:20px;"
+                )
+
+            ui.label(info.get("hint", "")).style(
+                "font-size:14px; line-height:20px;"
+            )
+
+            example = info.get("example")
+            if example:
+                ui.label(f"Пример: {example}").style(
+                    "font-size:13px; color:#94a3b8;"
+                )
+
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button(
+                    "Понятно",
+                    on_click=hint_dialog.close,
+                ).props("flat")
+
+                ui.button(
+                    "Добавить на схему",
+                    icon="add",
+                    on_click=lambda: (
+                        hint_dialog.close(),
+                        insert_symbol_v55(kind),
+                    ),
+                ).props("color=primary")
+
+        hint_dialog.open()
+
+    for group_name_v55, group_items_v55 in bpmn_groups_v55():
+        ui.label(group_name_v55).style(
+            "font-size:12px; font-weight:700; letter-spacing:.05em; "
+            "text-transform:uppercase; color:#7c8da8; margin-top:6px;"
+        )
+
+        grid_v55 = ui.element("div").style(
+            "display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); "
+            "gap:6px; width:100%;"
+        )
+        with grid_v55:
+            for kind_v55, label_v55 in group_items_v55:
+                with ui.element("div").style(
+                    "display:flex; flex-direction:column; align-items:center; "
+                    "gap:2px; padding:6px 4px; border-radius:10px; "
+                    "background:#1E2B45; border:1px solid #33415C; "
+                ):
+                    ui.html(
+                        bpmn_thumb_v55(kind_v55, 40),
+                        sanitize=False,
+                    ).style("height:40px; display:flex; align-items:center;")
+
+                    ui.label(
+                        BPMN_CATALOG_V55[kind_v55]["label"]
+                    ).style(
+                        "font-size:11px; line-height:13px; "
+                        "text-align:center; color:#E8EDF5;"
+                    )
+
+                    with ui.row().classes("gap-1 no-wrap"):
+                        # aria-label позволяет найти конкретный символ в
+                        # автотестах и помогает программам чтения с экрана.
+                        add_button_v55 = ui.button(
+                            icon="add",
+                            on_click=lambda k=kind_v55: insert_symbol_v55(k),
+                        ).props(
+                            "flat dense round size=sm "
+                            f'aria-label="Добавить: {kind_v55}" '
+                            f"data-rs-symbol-add={kind_v55}"
+                        ).style("color:#7FB2FF;")
+                        add_button_v55.mark(f"rs-add-{kind_v55}")
+                        add_button_v55.tooltip("Добавить на схему")
+
+                        help_button_v55 = ui.button(
+                            icon="help_outline",
+                            on_click=lambda k=kind_v55: show_hint_v55(k),
+                        ).props(
+                            "flat dense round size=sm "
+                            f'aria-label="Подсказка: {kind_v55}" '
+                            f"data-rs-symbol-hint={kind_v55}"
+                        ).style("color:#A9B8CF;")
+                        help_button_v55.mark(f"rs-hint-{kind_v55}")
+                        help_button_v55.tooltip("Что это и когда применять")
+
+    ui.separator()
 
 
 async def open_model_editor(
@@ -1527,7 +1686,7 @@ async def open_model_editor(
         with ui.element("div").style(
             f"position:relative; width:{WIDTH}px; height:{HEIGHT}px; "
             f"min-width:{WIDTH}px; overflow:hidden; "
-            "border:1px solid #526174; border-radius:10px; "
+            "border:1px solid #33415C; border-radius:10px; "
             "background-color:#17202c; "
             "background-image:"
             "linear-gradient(#ffffff0a 1px, transparent 1px),"
@@ -2721,7 +2880,7 @@ async def open_model_editor(
                             markup_v45,
                             sanitize=False,
                         ).style(
-                            (('position:absolute; left:0; top:0; pointer-events:none; ' + f"width:{float(node.get('width', NODE_WIDTH))}px; " + f"height:{float(node.get('height', NODE_HEIGHT))}px;") if symbol_type_v39 == 'LANE' else 'position:absolute; left:0; top:0; width:180px; height:70px; pointer-events:none;')
+                            ('position:absolute; left:0; top:0; pointer-events:none; ' + f"width:{float(node.get('width', NODE_WIDTH))}px; " + f"height:{float(node.get('height', NODE_HEIGHT))}px;") if symbol_type_v39 == 'LANE' else 'position:absolute; left:0; top:0; width:180px; height:70px; pointer-events:none;'
                         )
                     else:
                         ui.label(node.get("name", "Объект")).style(
@@ -3707,6 +3866,10 @@ async def open_model_editor(
                 ).classes("w-full")
 
                 ui.separator()
+
+                # RS_BPMN_PALETTE_V55
+                # Палитра символов BPMN: см. render_bpmn_palette_v55.
+                render_bpmn_palette_v55(add_symbol_v39)
 
                 ui.label("Размещения").style(
                     "font-size:14px; font-weight:600;"

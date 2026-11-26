@@ -317,3 +317,16 @@ SYMBOLS.update({
     "DATA_OUTPUT": "Выходные данные",
     "DATA_COLLECTION": "Набор данных",
 })
+
+
+# RS_BPMN_CATALOG_V55
+# Полный набор событий и шлюзов BPMN 2.0 по таблицам спецификации.
+# Старые коды не удаляются: диаграммы, сохранённые ранее, открываются
+# без миграции. Подписи берутся из каталога V55 («термин (пояснение)»).
+from rubik_studio.core.bpmn_catalog_v55 import CATALOG as _BPMN_CATALOG_V55
+
+SYMBOLS.update({
+    _code: _info["label"]
+    for _code, _info in _BPMN_CATALOG_V55.items()
+    if _code not in SYMBOLS
+})

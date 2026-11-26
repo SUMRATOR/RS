@@ -18,10 +18,16 @@ import tempfile
 import uuid
 from pathlib import Path
 
-import msvcrt
+try:  # RS_FILELOCK_PORTABLE_V55
+    import msvcrt  # Windows: блокировка через msvcrt.locking
+except ModuleNotFoundError:  # pragma: no cover - не-Windows (CI, Linux, macOS)
+    msvcrt = None
+    import fcntl
+
 from nicegui import ui
 
 from rubik_studio.core.repository import RepositoryService
+
 repository_service = RepositoryService()
 
 
@@ -79,7 +85,12 @@ class _FileLock:
         self.file.seek(0)
 
         try:
-            msvcrt.locking(self.file.fileno(), msvcrt.LK_LOCK, 1)
+            if msvcrt is not None:
+                msvcrt.locking(self.file.fileno(), msvcrt.LK_LOCK, 1)
+            else:
+                # На POSIX достаточно блокировки файла — приложение
+                # основной целевой платформы (Windows) не затрагивается.
+                fcntl.flock(self.file.fileno(), fcntl.LOCK_EX)
         except Exception:
             self.file.close()
             self.file = None
@@ -91,7 +102,10 @@ class _FileLock:
         if self.file is not None:
             try:
                 self.file.seek(0)
-                msvcrt.locking(self.file.fileno(), msvcrt.LK_UNLCK, 1)
+                if msvcrt is not None:
+                    msvcrt.locking(self.file.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    fcntl.flock(self.file.fileno(), fcntl.LOCK_UN)
             finally:
                 self.file.close()
                 self.file = None
@@ -205,7 +219,7 @@ def save_draft(database_id, expected_revision, nodes):
             "database_id": str(database_id),
             "revision": current_revision + 1,
             "saved_at": datetime.datetime.now(
-                datetime.timezone.utc
+                datetime.UTC
             ).isoformat(),
             "nodes": copy.deepcopy(nodes),
         }

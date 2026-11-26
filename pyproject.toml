@@ -31,6 +31,8 @@ include = ["rubik_studio*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# NiceGUI-симулятор импортирует этот файл вместо рабочего main.py.
+main_file = "tests/nicegui_main_for_tests.py"
 
 [tool.ruff]
 target-version = "py311"
