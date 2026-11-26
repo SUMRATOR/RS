@@ -18,8 +18,8 @@ from __future__ import annotations
 # ── Группы символов в палитре ───────────────────────────────────────────────
 
 GROUP_EVENTS = "События"
-GROUP_TASKS = "Работа"
-GROUP_GATEWAYS = "Ветвление"
+GROUP_TASKS = "Задачи"
+GROUP_GATEWAYS = "Шлюзы"
 GROUP_DATA = "Данные"
 
 GROUP_ORDER = (GROUP_EVENTS, GROUP_TASKS, GROUP_GATEWAYS, GROUP_DATA)
