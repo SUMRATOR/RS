@@ -61,7 +61,7 @@ def keep_user_config():
 
     saved = (config.theme, config.theme_accent, config.theme_background)
     saved_save = config.save
-    config.save = lambda *args, **kwargs: None  # noqa: ARG005 — запись не нужна
+    config.save = lambda *args, **kwargs: None
 
     yield
 
