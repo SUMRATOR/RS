@@ -52,9 +52,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
       - name: Tests (Windows)
-        # JUnit-отчёт нужен, чтобы падения были видны аннотациями GitHub:
-        # логи задач недоступны, а аннотации — да.
-        run: pytest -v --junit-xml=report.xml
-      - name: Test failures as annotations
-        if: failure()
-        run: python tools/ci_report_F.py report.xml
+        # Логи задач в интерфейсе GitHub бывают недоступны, поэтому итог и
+        # список падений дополнительно печатаются в сводку шага.
+        shell: bash
+        run: |
+          set +e
+          pytest -q --junit-xml=report.xml 2>&1 | tail -60
+          status=${PIPESTATUS[0]}
+          echo "pytest exit: $status"
+          if [ -f report.xml ]; then
+            python tools/ci_report_F.py report.xml || true
+          fi
+          exit $status
