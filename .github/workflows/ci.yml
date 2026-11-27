@@ -7,6 +7,12 @@ on:
     branches: [main]
     types: [opened, reopened, synchronize]
 
+# Нужно, чтобы упавший Windows-прогон мог оставить причину в PR:
+# логи задач из внешнего хранилища иногда недоступны, а комментарий — нет.
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -75,3 +81,21 @@ jobs:
             pytest-windows.log
             report.xml
           if-no-files-found: warn
+      - name: Report failure into pull request
+        if: failure() && github.event_name == 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! command -v gh >/dev/null 2>&1; then
+            echo "gh недоступен — пропускаем"
+            exit 0
+          fi
+          {
+            echo "**Windows: тесты упали** (коммит ${GITHUB_SHA:0:7})"
+            echo
+            echo '```'
+            grep -E "^(FAILED|ERROR)" pytest-windows.log | head -30 || tail -30 pytest-windows.log
+            echo '```'
+          } > body.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file body.md || true
