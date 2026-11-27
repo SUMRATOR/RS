@@ -8,6 +8,16 @@ from decimal import Decimal, InvalidOperation
 from nicegui import ui
 
 from rubik_studio.auth.middleware import current_user
+from rubik_studio.core.object_attributes_v59 import (
+    KIND_BOOLEAN,
+    KIND_DATE,
+    KIND_NUMBER,
+    KIND_TEXT,
+    KIND_TITLES,
+    AttributeField,
+    missing_required,
+    schema_for,
+)
 from rubik_studio.core.repository import RepositoryError, repo_service
 from rubik_studio.ui.layout import (
     confirm_dialog,
@@ -25,6 +35,12 @@ from rubik_studio.ui.pages.object_templates_v8 import (
 
 # RS_NAVIGATION_ATTRIBUTES_V4
 # RS_REPOSITORY_HINTS_V7
+
+
+def object_schema(obj):
+    """Набор полей карточки по типу объекта."""
+    obj_type = getattr(obj, "type", None)
+    return schema_for(getattr(obj_type, "code", None))
 
 
 ATTRIBUTE_TYPES = {
@@ -238,10 +254,12 @@ async def render():
                                     ).classes("text-xs text-blue-600")
 
                             with ui.row():
-                                ui.button(
+                                edit_button = ui.button(
                                     icon="edit",
                                     on_click=lambda o=obj: open_edit_dialog(o),
                                 ).props("flat round")
+                                edit_button.mark(f"rs-object-edit-{obj.id}")
+                                edit_button.tooltip("Открыть карточку")
 
                                 ui.button(
                                     icon="delete",
@@ -367,214 +385,314 @@ async def render():
                         ).classes("text-sm text-gray-500")
 
                     with ui.tab_panel(attributes_tab):
-                        ui.label(
-                            "Дополнительные атрибуты объекта"
-                        ).classes("text-lg font-semibold")
+                        # RS_OBJECT_ATTRIBUTE_SCHEMA_V59
+                        # Набор полей зависит от типа объекта: у документа
+                        # реквизиты и файл, у клиента ФИО и дата рождения.
+                        # Вместо «придумай название и выбери тип значения»
+                        # пользователь видит готовый список свойств.
+                        schema = object_schema(obj)
+                        widgets: dict[str, object] = {}
+
+                        ui.label(schema.title).classes("text-lg font-semibold")
+
+                        if schema.note:
+                            ui.label(schema.note).classes("text-sm rs-muted")
 
                         ui.label(
-                            "Атрибут — это дополнительное свойство объекта. "
-                            "Например: «Номер документа», «Стоимость» "
-                            "или «Дата утверждения»."
-                        ).classes("text-sm")
+                            "Пустые поля не сохраняются — карточка остаётся "
+                            "компактной. Своё свойство можно добавить внизу."
+                        ).classes("text-sm rs-muted")
 
-                        ui.label(
-                            "Кнопка «Применить» сохраняет атрибут только "
-                            "в открытой карточке. Для записи в базу "
-                            "нажмите «Сохранить объект»."
-                        ).classes("text-sm")
+                        attribute_container = ui.column().classes("w-full gap-2")
 
-                        attribute_container = ui.column().classes(
-                            "w-full gap-2"
-                        )
+                        def field_value(item):
+                            """Текущее значение поля из карточки."""
+                            raw = attributes.get(item.key)
+                            kind, decoded = decode_attribute(raw)
+                            return raw, kind, decoded
+
+                        def make_widget(item, raw, _kind, decoded):
+                            """Поле ввода под вид значения."""
+                            if item.kind == "date":
+                                return ui.input(
+                                    "ГГГГ-ММ-ДД",
+                                    value="" if raw is None else str(decoded),
+                                ).classes("w-full")
+
+                            if item.kind == "boolean":
+                                return ui.checkbox("Да", value=bool(decoded))
+
+                            if item.kind == "choice":
+                                return ui.select(
+                                    list(item.options),
+                                    value=(
+                                        str(decoded)
+                                        if raw is not None
+                                        and str(decoded) in item.options
+                                        else None
+                                    ),
+                                    label="Выберите значение",
+                                ).classes("w-full")
+
+                            if item.kind == "number":
+                                return ui.input(
+                                    "Число",
+                                    value="" if raw is None else str(decoded),
+                                ).classes("w-full")
+
+                            if item.kind == "file":
+                                return ui.input(
+                                    "Ссылка на файл",
+                                    value="" if raw is None else str(decoded),
+                                ).classes("w-full")
+
+                            return ui.input(
+                                "Значение",
+                                value="" if raw is None else str(decoded),
+                            ).classes("w-full")
+
+                        def show_file_link(raw):
+                            """Показываем, что файл прикреплён."""
+                            if not raw:
+                                return
+                            text = str(raw).strip()
+                            if not text:
+                                return
+                            with ui.row().classes("items-center gap-2"):
+                                ui.icon("attach_file")
+                                ui.link(text, text, new_tab=True).classes("text-sm")
+
+                        def attribute_row(item, is_custom=False):
+                            """Одна строка карточки: подпись, подсказка, поле."""
+                            raw, kind, decoded = field_value(item)
+
+                            with ui.column().classes("w-full gap-1"):
+                                with ui.row().classes(
+                                    "w-full items-center justify-between no-wrap"
+                                ):
+                                    caption = ui.label(
+                                        item.title
+                                        + (" *" if item.required else "")
+                                    ).classes("text-sm font-semibold")
+
+                                    caption.tooltip(
+                                        f"Вид значения: {KIND_TITLES.get(item.kind, item.kind)}"
+                                    )
+
+                                    if is_custom:
+                                        ui.button(
+                                            icon="close",
+                                            on_click=lambda k=item.key: (
+                                                attributes.pop(k, None),
+                                                refresh_attributes(),
+                                            ),
+                                        ).props("flat round dense").tooltip(
+                                            "Удалить своё свойство"
+                                        )
+
+                                if item.hint:
+                                    ui.label(item.hint).classes("text-xs rs-muted")
+
+                                widgets[item.key] = make_widget(
+                                    item, raw, kind, decoded
+                                )
+
+                                if item.kind == "file":
+                                    show_file_link(raw)
 
                         def refresh_attributes():
+                            widgets.clear()
                             attribute_container.clear()
 
                             with attribute_container:
-                                if not attributes:
+                                for item in schema.fields:
+                                    attribute_row(item)
+
+                                schema_keys = {f.key for f in schema.fields}
+                                extra = [
+                                    key
+                                    for key in attributes
+                                    if key not in schema_keys
+                                ]
+
+                                if extra:
+                                    ui.separator()
                                     ui.label(
-                                        "Атрибутов пока нет."
-                                    ).classes("text-gray-500")
+                                        "Свои свойства — добавлены вручную"
+                                    ).classes("text-sm font-semibold")
 
-                                for key, value in attributes.items():
-                                    with ui.row().classes(
-                                        "w-full items-center justify-between"
-                                    ):
-                                        ui.label(
-                                            f"{key}: {attribute_text(value)}"
-                                        ).classes("flex-1")
+                                    for key in extra:
+                                        attribute_row(
+                                            AttributeField(
+                                                key=key,
+                                                title=key,
+                                                kind="string",
+                                            ),
+                                            is_custom=True,
+                                        )
 
-                                        ui.button(
-                                            icon="edit",
-                                            on_click=lambda k=key:
-                                                open_attribute_dialog(k),
-                                        ).props("flat round")
+                        def read_widget(item, widget):
+                            """Значение поля в том виде, что хранит карточка."""
+                            if item.kind == "date":
+                                text = str(widget.value or "").strip()
+                                if not text:
+                                    return None
+                                return encode_attribute("date", text)
 
-                                        ui.button(
-                                            icon="delete",
-                                            color="negative",
-                                            on_click=lambda k=key:
-                                                remove_attribute(k),
-                                        ).props("flat round")
+                            if item.kind == "boolean":
+                                return bool(widget.value)
 
-                        def remove_attribute(key):
-                            attributes.pop(key, None)
-                            refresh_attributes()
+                            if item.kind == "number":
+                                text = str(widget.value or "").strip()
+                                if not text:
+                                    return None
+                                return encode_attribute("number", text)
 
-                        def open_attribute_dialog(existing_key=None):
-                            existing_value = (
-                                attributes.get(existing_key)
-                                if existing_key is not None
-                                else None
-                            )
+                            return str(widget.value or "").strip()
 
-                            kind, decoded = decode_attribute(existing_value)
+                        def collect_values():
+                            """Собрать значения полей; ошибки — с названием поля."""
+                            collected = {}
 
+                            for item in schema.fields:
+                                widget = widgets.get(item.key)
+                                if widget is None:
+                                    continue
+
+                                try:
+                                    collected[item.key] = read_widget(item, widget)
+                                except ValueError as exc:
+                                    raise ValueError(
+                                        f"{item.title}: {exc}"
+                                    ) from exc
+
+                            for key, widget in list(widgets.items()):
+                                if key in collected:
+                                    continue
+                                value = str(getattr(widget, "value", "") or "").strip()
+                                collected[key] = value
+
+                            return collected
+
+                        refresh_attributes()
+
+                        def open_attribute_dialog():
+                            """Своё свойство: название и вид значения."""
                             with ui.dialog() as attribute_dialog, ui.card():
-                                ui.label(
-                                    "Редактирование атрибута"
-                                    if existing_key is not None
-                                    else "Новый атрибут"
-                                ).classes("text-lg font-semibold")
-
-                                ui.label(
-                                    "Укажите название, тип и значение. "
-                                    "Например: «Стоимость» — число, "
-                                    "«Утверждён» — логическое значение."
-                                ).classes("text-sm")
-
-                                ui.label(
-                                    "После «Применить» сохраните "
-                                    "карточку объекта целиком."
-                                ).classes("text-sm")
-
-                                key_input = ui.input(
-                                    "Название атрибута",
-                                    value=existing_key or "",
-                                ).classes("w-80")
-
-                                kind_select = ui.select(
-                                    ATTRIBUTE_TYPES,
-                                    value=kind,
-                                    label="Тип значения",
-                                ).classes("w-80")
-
-                                value_container = ui.column().classes(
-                                    "w-full"
+                                ui.label("Своё свойство").classes(
+                                    "text-lg font-semibold"
                                 )
 
-                                state = {"input": None}
+                                ui.label(
+                                    "Для полей, которых нет в наборе типа. "
+                                    "Например: «Внутренний код»."
+                                ).classes("text-sm rs-muted")
+
+                                key_input = ui.input(
+                                    "Название"
+                                ).classes("w-full")
+
+                                kind_select = ui.select(
+                                    {
+                                        KIND_TEXT: KIND_TITLES[KIND_TEXT],
+                                        KIND_NUMBER: KIND_TITLES[KIND_NUMBER],
+                                        KIND_DATE: KIND_TITLES[KIND_DATE],
+                                        KIND_BOOLEAN: KIND_TITLES[KIND_BOOLEAN],
+                                    },
+                                    value=KIND_TEXT,
+                                    label="Вид значения",
+                                ).classes("w-full")
+
+                                value_container = ui.column().classes("w-full")
 
                                 def render_value():
                                     value_container.clear()
-
                                     with value_container:
-                                        selected = kind_select.value
-
-                                        if selected == "boolean":
-                                            state["input"] = ui.checkbox(
-                                                "Да / Нет",
-                                                value=(
-                                                    bool(decoded)
-                                                    if kind == "boolean"
-                                                    else False
-                                                ),
-                                            )
+                                        if kind_select.value == KIND_BOOLEAN:
+                                            ui.checkbox("Да")
                                         else:
-                                            initial = (
-                                                str(decoded)
-                                                if selected == kind
-                                                and decoded is not None
-                                                else ""
+                                            placeholder = (
+                                                "ГГГГ-ММ-ДД"
+                                                if kind_select.value == KIND_DATE
+                                                else "Значение"
                                             )
-
-                                            state["input"] = ui.input(
-                                                "Значение",
-                                                value=initial,
-                                            ).classes("w-80")
-
-                                            if selected == "date":
-                                                ui.label(
-                                                    "Формат: ГГГГ-ММ-ДД"
-                                                ).classes(
-                                                    "text-xs text-gray-500"
-                                                )
+                                            ui.input(placeholder).classes("w-full")
 
                                 kind_select.on_value_change(
-                                    lambda _: render_value()
+                                    lambda _e: render_value()
                                 )
-
                                 render_value()
 
                                 def save_attribute():
                                     key = (key_input.value or "").strip()
 
                                     if not key:
+                                        show_error("Введите название свойства")
+                                        return
+
+                                    if key in schema.fields or key in attributes:
                                         show_error(
-                                            "Введите название атрибута"
+                                            "Свойство с таким названием уже есть"
                                         )
                                         return
 
-                                    if (
-                                        key != existing_key
-                                        and key in attributes
-                                    ):
-                                        show_error(
-                                            "Атрибут с таким названием уже существует"
-                                        )
-                                        return
-
-                                    try:
-                                        encoded = encode_attribute(
-                                            kind_select.value,
-                                            state["input"].value,
-                                        )
-                                    except ValueError as exc:
-                                        show_error(str(exc))
-                                        return
-
-                                    if (
-                                        existing_key is not None
-                                        and existing_key != key
-                                    ):
-                                        attributes.pop(existing_key, None)
-
-                                    attributes[key] = encoded
-
+                                    # Своё свойство хранится как текст: этого
+                                    # достаточно, чтобы не потерять значение.
+                                    attributes[key] = ""
                                     attribute_dialog.close()
                                     refresh_attributes()
 
-                                with ui.row().classes(
-                                    "w-full justify-end"
-                                ):
+                                with ui.row().classes("w-full justify-end"):
                                     ui.button(
                                         "Отмена",
                                         on_click=attribute_dialog.close,
                                     ).props("flat")
 
                                     ui.button(
-                                        "Применить",
+                                        "Добавить",
                                         on_click=save_attribute,
                                     )
 
                             attribute_dialog.open()
 
                         ui.button(
-                            "Добавить атрибут",
+                            "Добавить своё свойство",
                             icon="add",
-                            on_click=lambda: open_attribute_dialog(),
-                        )
-
-                        refresh_attributes()
+                            on_click=open_attribute_dialog,
+                        ).props("flat")
 
                 async def save_object():
+                    try:
+                        values = collect_values()
+                    except ValueError as exc:
+                        show_error(str(exc))
+                        return
+
+                    # Пустые поля не записываем: карточка не разрастается.
+                    filled = {
+                        key: value
+                        for key, value in values.items()
+                        if value not in (None, "")
+                    }
+
+                    missing = missing_required(
+                        getattr(getattr(obj, "type", None), "code", None),
+                        filled,
+                    )
+                    if missing:
+                        show_error(
+                            "Заполните обязательные поля: "
+                            + ", ".join(item.title for item in missing)
+                        )
+                        return
+
                     try:
                         await repo_service.update_object(
                             database_id=database_id,
                             object_id=obj.id,
                             name=name.value,
                             description=description.value,
-                            attributes=attributes,
+                            attributes=filled,
                             username=user.get("username", "local"),
                             user_id=user.get("id"),
                         )

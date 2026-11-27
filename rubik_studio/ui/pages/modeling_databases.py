@@ -6,20 +6,23 @@ from rubik_studio.core.modeling_databases import (
     ModelingError,
     modeling_service,
 )
+from rubik_studio.ui.layout import create_page_layout
 
 
 async def render() -> None:
+    # RS_DATABASES_LAYOUT_V59
+    # Страница собирается общим макетом: шапка, боковое меню и тема
+    # оформления такие же, как в остальных разделах.
+    content = create_page_layout(
+        "Базы моделирования",
+        "Создавайте независимые базы и выбирайте методологию моделирования.",
+    )
 
-    ui.button(
-        "На главную",
-        icon="arrow_back",
-        on_click=lambda: ui.navigate.to("/"),
-    ).props("flat")
+    with content:
+        await _render_content()
 
-    ui.label("Базы моделирования").classes("text-3xl font-bold")
-    ui.label(
-        "Создавайте независимые базы и выбирайте методологию моделирования."
-    ).classes("text-gray-500")
+
+async def _render_content() -> None:
 
     with ui.tabs().classes("w-full") as tabs:
         databases_tab = ui.tab("Логические базы")

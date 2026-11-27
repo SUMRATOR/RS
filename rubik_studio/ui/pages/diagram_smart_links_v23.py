@@ -136,6 +136,24 @@ def render_svg(nodes, links, stored_edges, width, height):
             '<path d="M 0 0 L 10 5 L 0 10 z" '
             'fill="context-stroke"></path></marker>'
         ),
+        # RS_FLOW_VISIBLE_V59: маркеры потоков V29. Толщина и размер
+        # подобраны для чтения схемы без увеличения, цвет — по контексту
+        # линии, поэтому тема оформления символы не перекрашивает.
+        (
+            f'<marker id="{marker_id}-full" '
+            'viewBox="0 0 12 12" refX="11" refY="6" '
+            'markerWidth="10" markerHeight="10" orient="auto-start-reverse">'
+            '<path d="M 1 1 L 11 6 L 1 11 Z" '
+            'fill="context-stroke"></path></marker>'
+        ),
+        (
+            f'<marker id="{marker_id}-open" '
+            'viewBox="0 0 12 12" refX="11" refY="6" '
+            'markerWidth="11" markerHeight="11" orient="auto-start-reverse">'
+            '<path d="M 1 1 L 11 6 L 1 11" fill="none" '
+            'stroke="context-stroke" stroke-width="1.6" '
+            'stroke-linecap="round" stroke-linejoin="round"></path></marker>'
+        ),
         "</defs>",
     ]
 
@@ -207,13 +225,33 @@ def render_svg(nodes, links, stored_edges, width, height):
                 f' data-rs-flow-edge="{safe_edge_v33}"'
             )
 
+        # RS_FLOW_VISIBLE_V59
+        # Потоки V29 рисуются толще технических связей и получают свой
+        # вид маркера: поток управления — сплошная стрелка, сообщение —
+        # открытая. Иначе цепь «граничное сообщение → задача-скрипт →
+        # бизнес-правило» на диаграмме читается как случайные нити.
+        flow_kind_v59 = (
+            line["label"].split(":", 1)[-1]
+            if line["label"] in flow_codes_v33
+            else ""
+        )
+        marker_style_v59 = "full"
+        stroke_width_v59 = 2
+        if flow_kind_v59 == "MESSAGE":
+            marker_style_v59 = "open"
+        if flow_kind_v59:
+            stroke_width_v59 = 2.6
+            dash = ""
+
         parts.append(
             f'<g class="rs-smart-line"{flow_edge_attr_v33} '
             f'data-source="{source}" '
             f'data-target="{target}" '
-            f'data-offset="{offset}">'
-            f'<line stroke="{color}" stroke-width="2"'
-            f'{dash} marker-end="url(#{marker_id})"></line>'
+            f'data-offset="{offset}" '
+            f'data-flow-kind="{flow_kind_v59}">'
+            f'<line stroke="{color}" stroke-width="{stroke_width_v59}"'
+            f'{dash} marker-end="url(#{marker_id}-{marker_style_v59})">'
+            '</line>'
             '<text text-anchor="middle" '
             'font-size="12" fill="#ffffff" '
             'paint-order="stroke" stroke="#17202c" '
@@ -405,18 +443,35 @@ def render_svg(nodes, links, stored_edges, width, height):
         if line is None:
             continue
 
+        # RS_FLOW_VISIBLE_V59: видимая линия — маршрут V46 (path), который
+        # копирует атрибуты скрытой <line> при каждом пересчёте. Чтобы вид
+        # потока не терялся, пишем маркеры и толщину в оба элемента.
+        route = group.find(q('path'))
+
         kind = flow_kinds[edge_id]
 
         if kind == "__RS_FLOW_V29__:MESSAGE":
-            line.set("marker-start", circle_start)
-            line.set("marker-end", open_end)
-            line.set("stroke-dasharray", "8 5")
+            settings = {
+                "marker-start": circle_start,
+                "marker-end": open_end,
+                "stroke-dasharray": "8 5",
+            }
         else:
-            line.set("marker-end", filled_end)
+            settings = {"marker-end": filled_end}
 
             if kind == "__RS_FLOW_V29__:CONDITIONAL":
-                line.set("marker-start", diamond_start)
+                settings["marker-start"] = diamond_start
             elif kind == "__RS_FLOW_V29__:DEFAULT":
-                line.set("marker-start", slash_start)
+                settings["marker-start"] = slash_start
+
+        # Толщина: потоки V29 читаются на общем плане, поэтому они
+        # заметнее технических связей репозитория.
+        settings["stroke-width"] = "2.4"
+
+        for target_element in (line, route):
+            if target_element is None:
+                continue
+            for attr_name, attr_value in settings.items():
+                target_element.set(attr_name, attr_value)
 
     return _ET.tostring(root, encoding="unicode"), count

@@ -66,67 +66,17 @@ def register_pages():
 
 
 @ui.page("/")
-def rubik_home_page():
-    """Временная главная страница Rubik Studio."""
+async def rubik_home_page():
+    """Главная страница: та же шапка, меню и тема, что и в остальных разделах."""
 
-    # RS_BRANDING_HOME_V1
-    ui.image(
-        full_logo_url(current_palette().name)
-    ).style(
-        'width: 180px; '
-        'max-width: 60vw; '
-        'height: auto; '
-        'margin: 12px auto;'
-    )
-    with ui.column().classes(
-        "w-full items-center justify-center p-10"
-    ):
+    # RS_HOME_LAYOUT_V59
+    # Раньше это была отдельная «временная» страница без макета: у неё не
+    # было шапки, меню и темы оформления, поэтому приложение выглядело
+    # набором несвязанных окон. Теперь главная собирается тем же
+    # create_page_layout, что и остальные разделы.
+    from rubik_studio.ui.pages.dashboard import render as render_dashboard
 
-        ui.label("RS — RUBIK STUDIO").classes(
-            "text-4xl font-bold"
-        )
-
-        ui.label("Model. Mine. Automate.").classes(
-            "text-xl text-gray-500"
-        )
-
-        ui.separator().classes("w-full max-w-2xl")
-
-        ui.label("Добро пожаловать в Rubik Studio").classes(
-            "text-2xl"
-        )
-
-        ui.label(
-            "Фундамент приложения запущен. "
-            "Следующий этап — подключение модулей моделирования."
-        )
-
-        with ui.row().classes("gap-4 mt-6"):
-
-            ui.button(
-                "Базы моделирования",
-                on_click=lambda: ui.navigate.to("/modeling-databases"),
-            )
-
-            ui.button(
-                "Репозиторий",
-                on_click=lambda: ui.navigate.to("/repository"),
-            )
-
-            ui.button(
-                "Журнал",
-                on_click=lambda: ui.navigate.to("/logs"),
-            )
-
-            ui.button(
-                "Настройки",
-                on_click=lambda: ui.navigate.to("/settings"),
-            )
-
-        ui.label(
-            "RS — RUBIK STUDIO | v0.1.0"
-        ).classes("mt-10 text-gray-400")
-
+    await render_dashboard()
 
 
 # ============================================================

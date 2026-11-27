@@ -114,16 +114,20 @@ def create_sidebar() -> None:
                 )
 
 
-def create_page_layout(title: str) -> ui.column:
-    # RS_THEMES_V56: тема применяется здесь, поэтому каждая страница,
-    # построенная через этот макет, автоматически получает выбранное
-    # пользователем оформление.
+def create_page_layout(title: str, subtitle: str = "") -> ui.column:
+    """Общий каркас страницы: тема, шапка, меню и заголовок.
+
+    Тема применяется здесь, поэтому каждая страница, построенная через
+    этот макет, автоматически получает выбранное оформление.
+    """
     apply_theme()
     create_header()
     create_sidebar()
     content = ui.column().classes("w-full max-w-6xl mx-auto p-4 gap-4 rs-app-shell")
     with content:
         ui.label(title).classes("text-2xl font-bold")
+        if subtitle:
+            ui.label(subtitle).classes("text-sm rs-muted")
     return content
 
 # RS_NAVIGATION_ATTRIBUTES_V4

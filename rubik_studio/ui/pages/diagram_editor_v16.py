@@ -23,6 +23,11 @@ from rubik_studio.core.diagram_symbols_v39 import SYMBOLS as SYMBOLS_V39
 from rubik_studio.core.repository import RepositoryService
 
 repository_service = RepositoryService()
+
+# RS_DIAGRAM_SHAPE_ATTR_V59
+# Все события рисуются кружком, все шлюзы — ромбом. Наборы берутся из
+# единого источника разметки, поэтому новый символ автоматически получает
+# правильную форму для расчёта точек связи.
 # RS_BPMN_SHAPES_V55: единый источник разметки символов —
 # палитра, поле и колесо рисуют символ одинаково.
 from rubik_studio.core.bpmn_catalog_v55 import (  # noqa: E402 — подключается отдельным блоком
@@ -33,6 +38,12 @@ from rubik_studio.core.bpmn_catalog_v55 import (  # noqa: E402 — подклю�
 )
 from rubik_studio.core.bpmn_events_v58 import (  # noqa: E402 — подключается отдельным блоком
     is_boundary as is_boundary_event_v58,
+)
+from rubik_studio.core.bpmn_shapes_v55 import (  # noqa: E402 — блок расширений
+    EVENT_KINDS as BPMN_EVENT_KINDS_V59,
+)
+from rubik_studio.core.bpmn_shapes_v55 import (  # noqa: E402 — блок расширений
+    GATEWAY_KINDS as BPMN_GATEWAY_KINDS_V59,
 )
 from rubik_studio.core.bpmn_shapes_v55 import (  # noqa: E402 — подключается отдельным блоком
     shape_markup as bpmn_shape_v55,
@@ -46,8 +57,13 @@ from rubik_studio.core.diagram_storage_v15 import (  # noqa: E402 — подкл
     load_diagram,
     save_diagram,
 )
-from rubik_studio.ui.bpmn_event_palette_v58 import (  # noqa: E402 — подключается отдельным блоком
+from rubik_studio.ui.bpmn_event_palette_v58 import (  # noqa: E402 — блок расширений
     render_event_variants_palette,
+)
+from rubik_studio.ui.bpmn_palette_v59 import (  # noqa: E402 — блок расширений
+    attach_drag_script,
+    collapse_group,
+    draggable_symbol,
 )
 from rubik_studio.ui.pages.canvas_draft_v11 import (  # noqa: E402 — подключается отдельным блоком
     open_canvas_draft as open_technical_draft,
@@ -63,8 +79,37 @@ from rubik_studio.ui.pages.diagram_smart_links_v23 import (  # noqa: E402 — п
 
 
 # RS_DIAGRAM_EXPAND_FIELD_V28
+# RS_INFINITE_CANVAS_V59
+# Полотно — бесконечный лист, который двигается под неподвижной рамкой.
+# WIDTH/HEIGHT задают размер листа для старых диаграмм; новые элементы
+# можно ставить за его пределами, а край листа расширяется на лету.
 WIDTH = 20000
 HEIGHT = 20000
+
+# Границы, в которых разрешено размещение элементов.
+WORLD_LIMIT = 1_000_000
+
+# Минимальный запас листа за крайним элементом: лист всегда «больше»
+# схемы, поэтому панорамирование не упирается в пустоту.
+CANVAS_MARGIN = 2000
+
+# Шаг сетки. Сетка рисуется на листе, а не на рамке, и двигается вместе
+# с содержимым — иначе она «стоит», и перемещение не читается.
+GRID_STEP = 25
+
+
+def canvas_extent(nodes) -> tuple[int, int]:
+    """Размер листа под содержимое: не меньше WIDTH x HEIGHT."""
+    max_x, max_y = WIDTH, HEIGHT
+    for node in nodes:
+        try:
+            right = float(node["x"]) + float(node.get("width", NODE_WIDTH))
+            bottom = float(node["y"]) + float(node.get("height", NODE_HEIGHT))
+        except (KeyError, TypeError, ValueError):
+            continue
+        max_x = max(max_x, right + CANVAS_MARGIN)
+        max_y = max(max_y, bottom + CANVAS_MARGIN)
+    return int(max_x), int(max_y)
 NODE_WIDTH = 180
 NODE_HEIGHT = 70
 
@@ -616,72 +661,62 @@ def render_bpmn_palette_v55(on_pick, on_event_pick=None):
         hint_dialog.open()
 
     for group_name_v55, group_items_v55 in bpmn_groups_v55():
-        ui.label(group_name_v55).style(
-            "font-size:12px; font-weight:700; letter-spacing:.05em; "
-            "text-transform:uppercase; color:#7c8da8; margin-top:6px;"
+        def render_group(items=group_items_v55, name=group_name_v55) -> None:
+            _render_symbol_grid(items, on_pick, show_hint_v55)
+
+        collapse_group(
+            group_name_v55,
+            len(group_items_v55),
+            render_group,
+            start_open=group_name_v55 in {"Задачи", "Шлюзы"},
         )
 
-        grid_v55 = ui.element("div").style(
-            "display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); "
-            "gap:6px; width:100%;"
-        )
-        with grid_v55:
-            for kind_v55, label_v55 in group_items_v55:
-                with ui.element("div").style(
-                    "display:flex; flex-direction:column; align-items:center; "
-                    "gap:2px; padding:6px 4px; border-radius:10px; "
-                    "background:#1E2B45; border:1px solid #33415C; "
-                ):
-                    ui.html(
-                        bpmn_thumb_v55(kind_v55, 40),
-                        sanitize=False,
-                    ).style("height:40px; display:flex; align-items:center;")
-
-                    ui.label(
-                        BPMN_CATALOG_V55[kind_v55]["label"]
-                    ).style(
-                        "font-size:11px; line-height:13px; "
-                        "text-align:center; color:#E8EDF5;"
-                    )
-
-                    with ui.row().classes("gap-1 no-wrap"):
-                        # aria-label позволяет найти конкретный символ в
-                        # автотестах и помогает программам чтения с экрана.
-                        add_button_v55 = ui.button(
-                            icon="add",
-                            on_click=lambda k=kind_v55: insert_symbol_v55(k),
-                        ).props(
-                            "flat dense round size=sm "
-                            f'aria-label="Добавить: {kind_v55}" '
-                            f"data-rs-symbol-add={kind_v55}"
-                        ).style("color:#7FB2FF;")
-                        add_button_v55.mark(f"rs-add-{kind_v55}")
-                        add_button_v55.tooltip("Добавить на схему")
-
-                        help_button_v55 = ui.button(
-                            icon="help_outline",
-                            on_click=lambda k=kind_v55: show_hint_v55(k),
-                        ).props(
-                            "flat dense round size=sm "
-                            f'aria-label="Подсказка: {kind_v55}" '
-                            f"data-rs-symbol-hint={kind_v55}"
-                        ).style("color:#A9B8CF;")
-                        help_button_v55.mark(f"rs-hint-{kind_v55}")
-                        help_button_v55.tooltip("Что это и когда применять")
-
-    ui.separator()
 
     # RS_BPMN_EVENT_VARIANTS_V58
     # Палитра вариантов событий: вкладки «Начальное / Промежуточное /
     # Граничное / Конечное» и выбор подтипа. Граничные события крепятся
     # к границе задачи — редактор создаёт их в режиме привязки.
     if on_event_pick is not None:
-        render_event_variants_palette(
-            on_pick=on_event_pick,
-            on_hint=show_hint_v55,
+        # RS_BPMN_PALETTE_COLLAPSE_V59: сорок событий прячутся под одной
+        # строкой-заголовком, иначе до задач и шлюзов нужно прокручивать
+        # всю панель. Группа раскрыта, потому что события — частый выбор.
+        collapse_group(
+            "Событие: выберите положение",
+            len(BPMN_EVENT_KINDS_V59),
+            lambda: render_event_variants_palette(
+                on_pick=on_event_pick,
+                on_hint=show_hint_v55,
+            ),
+            start_open=True,
+            key="event-variants",
         )
 
     ui.separator()
+
+
+def _render_symbol_grid(group_items_v55, on_pick, show_hint_v55) -> None:
+    """Сетка карточек одной группы палитры.
+
+    RS_BPMN_PALETTE_COLLAPSE_V59: карточку можно перетащить мышью прямо
+    на поле диаграммы, кнопка «+» ставит символ автоматически.
+    """
+    grid_v55 = ui.element("div").style(
+        "display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); "
+        "gap:6px; width:100%;"
+    )
+
+    def insert_symbol_v55(kind_v55):
+        on_pick(kind_v55)
+
+    with grid_v55:
+        for kind_v55, _label_v55 in group_items_v55:
+            draggable_symbol(
+                kind_v55,
+                bpmn_thumb_v55(kind_v55, 40),
+                BPMN_CATALOG_V55[kind_v55]["label"],
+                on_add=insert_symbol_v55,
+                on_hint=show_hint_v55,
+            )
 
 
 def _insert_event_v58(kind, insert_symbol) -> None:
@@ -808,9 +843,11 @@ async def open_model_editor(
                 return
             if width <= 0 or height <= 0:
                 return
-            if not (0 <= x <= WIDTH - width):
+            # RS_INFINITE_CANVAS_V59: лист бесконечный, ограничение только
+            # защитное — от случайных огромных координат.
+            if not (0 <= x <= WORLD_LIMIT - width):
                 return
-            if not (0 <= y <= HEIGHT - height):
+            if not (0 <= y <= WORLD_LIMIT - height):
                 return
 
             if node["x"] != x or node["y"] != y:
@@ -1456,7 +1493,14 @@ async def open_model_editor(
     # RS_BPMN_SYMBOLS_V39
     symbol_choice_v39 = {"kind": "TASK"}
 
-    def add_symbol_v39(kind, center_x=None, center_y=None):
+    def add_symbol_v39(
+        kind, center_x=None, center_y=None, drop_x=None, drop_y=None
+    ):
+        """Добавить символ.
+
+        center_x/center_y — центр символа (радиальное меню).
+        drop_x/drop_y — точка, куда пользователь бросил символ мышью.
+        """
         if state["saving"]:
             ui.notify("Дождитесь окончания сохранения.", type="warning")
             return
@@ -1469,7 +1513,18 @@ async def open_model_editor(
             ui.notify("Достигнут предел элементов.", type="warning")
             return
 
-        if center_x is None or center_y is None:
+        if drop_x is not None and drop_y is not None:
+            # Символ встаёт точно под курсор: смещаем на половину блока,
+            # как если бы пользователь держал его за середину.
+            try:
+                x = float(drop_x) - NODE_WIDTH / 2
+                y = float(drop_y) - NODE_HEIGHT / 2
+            except (TypeError, ValueError):
+                ui.notify("Некорректная точка размещения.", type="warning")
+                return
+            x = max(0.0, x)
+            y = max(0.0, y)
+        elif center_x is None or center_y is None:
             index = len(state["nodes"])
             x = 20 + (index % 4) * 210
             y = 20 + ((index // 4) % 5) * 90
@@ -1481,11 +1536,13 @@ async def open_model_editor(
                 ui.notify("Некорректная точка размещения.", type="warning")
                 return
 
-        if not (0 <= x <= WIDTH - NODE_WIDTH):
+        # RS_INFINITE_CANVAS_V59: лист не заканчивается на WIDTH/HEIGHT,
+        # ограничение только защитное.
+        if not (0 <= x <= WORLD_LIMIT - NODE_WIDTH):
             ui.notify("Точка за горизонтальной границей поля.", type="warning")
             return
 
-        if not (0 <= y <= HEIGHT - NODE_HEIGHT):
+        if not (0 <= y <= WORLD_LIMIT - NODE_HEIGHT):
             ui.notify("Точка за вертикальной границей поля.", type="warning")
             return
 
@@ -1691,8 +1748,8 @@ async def open_model_editor(
             not all(math.isfinite(v) for v in (width, height, x, y))
             or width < 100
             or height < 70
-            or x + width > WIDTH
-            or y + height > HEIGHT
+            or x + width > WORLD_LIMIT
+            or y + height > WORLD_LIMIT
         ):
             ui.notify(
                 "Недопустимый размер дорожки.",
@@ -1710,15 +1767,19 @@ async def open_model_editor(
 
     @ui.refreshable
     def draw_canvas():
+        # RS_INFINITE_CANVAS_V59
+        # Лист растёт под содержимое и не обрезает элементы. Рамку и
+        # панорамирование рисует скрипт ниже: рамка неподвижна, лист
+        # едет под ней.
+        sheet_w, sheet_h = canvas_extent(state["nodes"])
         with ui.element("div").style(
-            f"position:relative; width:{WIDTH}px; height:{HEIGHT}px; "
-            f"min-width:{WIDTH}px; overflow:hidden; "
-            "border:1px solid #33415C; border-radius:10px; "
+            f"position:relative; width:{sheet_w}px; height:{sheet_h}px; "
+            f"min-width:{sheet_w}px; min-height:{sheet_h}px; overflow:visible; "
             "background-color:#17202c; "
             "background-image:"
             "linear-gradient(#ffffff0a 1px, transparent 1px),"
             "linear-gradient(90deg, #ffffff0a 1px, transparent 1px);"
-            "background-size:25px 25px;"
+            f"background-size:{GRID_STEP}px {GRID_STEP}px;"
         ) as canvas:
 
             # RS_DIAGRAM_PAN_ZOOM_V25
@@ -1740,6 +1801,38 @@ async def open_model_editor(
             canvas.on(
                 "rs-open-chain-v32",
                 open_chain_editor_v32,
+                args=["detail"],
+            )
+
+            # RS_BPMN_PALETTE_COLLAPSE_V59
+            # Символ, перетащенный из палитры, встаёт точно под курсор:
+            # soобщение передаёт координаты уже в системе листа.
+            def drop_symbol_v59(event):
+                detail = event.args
+                if isinstance(detail, dict) and "detail" in detail:
+                    detail = detail["detail"]
+                if not isinstance(detail, dict):
+                    return
+
+                kind = detail.get("kind")
+                if not kind:
+                    return
+
+                try:
+                    world_x = float(detail.get("x", 0))
+                    world_y = float(detail.get("y", 0))
+                except (TypeError, ValueError):
+                    return
+
+                add_symbol_v39(
+                    kind,
+                    drop_x=world_x,
+                    drop_y=world_y,
+                )
+
+            canvas.on(
+                "rs-palette-drop-v59",
+                drop_symbol_v59,
                 args=["detail"],
             )
             pan_zoom_script = """
@@ -1778,10 +1871,16 @@ async def open_model_editor(
 
                     const viewport = canvas.parentElement;
 
+                    // RS_INFINITE_CANVAS_V59
+                    // Рамка занимает всё доступное место, лист под ней
+                    // больше экрана и двигается панорамированием.
                     viewport.style.position = 'relative';
                     viewport.style.width = '100%';
-                    viewport.style.height = 'auto';
-                    viewport.style.minHeight = '0';
+                    viewport.style.height =
+                        'calc(100vh - ' + Math.round(
+                            viewport.getBoundingClientRect().top
+                        ) + 'px - 16px)';
+                    viewport.style.minHeight = '420px';
                     viewport.style.overflow = 'hidden';
                     viewport.style.background = '#101925';
                     viewport.style.border = '1px solid #526174';
@@ -2796,6 +2895,7 @@ async def open_model_editor(
             """.replace("CANVAS_ID", str(canvas.id))
 
             ui.run_javascript(pan_zoom_script)
+            attach_drag_script(canvas.id)
 
             markup, line_count = render_smart_links_svg(
                 state["nodes"],
@@ -2922,15 +3022,14 @@ async def open_model_editor(
                         rename_symbol_v39()
 
                     element.on("dblclick", rename_from_canvas_v42)
-                if symbol_type_v39 in {
-                    "START_EVENT", "INTERMEDIATE_EVENT", "END_EVENT"
-                }:
+                # RS_DIAGRAM_SHAPE_ATTR_V59
+                # Форму для расчёта точек связи задаём по типу символа, а не
+                # по трём старым кодам: иначе новое событие (таймер, ошибка,
+                # граничное) считается прямоугольником 180 x 70, и линия
+                # цепляется за пустые поля блока.
+                if symbol_type_v39 in BPMN_EVENT_KINDS_V59:
                     element.props('data-rs-shape="circle"')
-                elif symbol_type_v39 in {
-                    "EXCLUSIVE_GATEWAY",
-                    "PARALLEL_GATEWAY",
-                    "INCLUSIVE_GATEWAY",
-                }:
+                elif symbol_type_v39 in BPMN_GATEWAY_KINDS_V59:
                     element.props('data-rs-shape="diamond"')
                 element.style("z-index:1;")
 
@@ -3001,7 +3100,64 @@ async def open_model_editor(
 
                             // RS_DIAGRAM_ORTHOGONAL_V46
                             // Четыре точки: сверху, справа, снизу, слева.
+
+                            // RS_DIAGRAM_ANCHOR_V59
+                            // Размер видимой фигуры, а не блока элемента.
+                            // Событие рисуется кружком 60 px внутри блока
+                            // 180 x 70: если считать по блоку, линия
+                            // начинается в пустоте слева и справа и
+                            // «прилипает» мимо фигуры.
+                            function visibleBox(element, w, h) {
+                                const shape = element.dataset.rsShape;
+                                const box = {
+                                    x: w / 2,
+                                    y: h / 2,
+                                    rx: w / 2,
+                                    ry: h / 2
+                                };
+
+                                if (shape === 'circle') {
+                                    box.rx = 29;
+                                    box.ry = 29;
+                                } else if (shape === 'diamond') {
+                                    box.rx = 30;
+                                    box.ry = 30;
+                                }
+
+                                // Для событий-кружков на схеме ожидается
+                                // точка на самом контуре, поэтому радиус
+                                // берём из data-атрибута, если он задан.
+                                const custom = parseFloat(
+                                    element.dataset.rsAnchorR
+                                );
+                                if (!Number.isNaN(custom) && custom > 0) {
+                                    box.rx = custom;
+                                    box.ry = custom;
+                                }
+
+                                return box;
+                            }
+
                             function sidePoint(element, x, y, w, h, side) {
+                                const box = visibleBox(element, w, h);
+                                const cx = x + box.x;
+                                const cy = y + box.y;
+
+                                if (side === 'left') {
+                                    return {x: cx - box.rx, y: cy};
+                                }
+                                if (side === 'right') {
+                                    return {x: cx + box.rx, y: cy};
+                                }
+                                if (side === 'top') {
+                                    return {x: cx, y: cy - box.ry};
+                                }
+                                return {x: cx, y: cy + box.ry};
+                            }
+
+                            // Оставлено для совместимости с V46: часть
+                            // вызовов передаёт готовые радиусы.
+                            function sidePointLegacy(element, x, y, w, h, side) {
                                 const shape = element.dataset.rsShape;
                                 const cx = x + w / 2;
                                 const cy = y + h / 2;
@@ -3035,19 +3191,11 @@ async def open_model_editor(
                             // Выбираем стороны по промежуткам между
                             // видимыми границами, а не только центрами.
                             function boundsV50(element, x, y, w, h) {
-                                const shape = element.dataset.rsShape;
-                                const cx = x + w / 2;
-                                const cy = y + h / 2;
-                                let rx = w / 2;
-                                let ry = h / 2;
-
-                                if (shape === 'circle') {
-                                    rx = 29;
-                                    ry = 29;
-                                } else if (shape === 'diamond') {
-                                    rx = 30;
-                                    ry = 30;
-                                }
+                                const box = visibleBox(element, w, h);
+                                const cx = x + box.x;
+                                const cy = y + box.y;
+                                const rx = box.rx;
+                                const ry = box.ry;
 
                                 return {
                                     left: cx - rx,

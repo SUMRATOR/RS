@@ -170,9 +170,12 @@ async def test_palette_renders_in_ui(user: User):
 
     await user.open("/palette")
 
-    # Палитра содержит 43 символа и 43 кнопки «добавить».
+    # RS_BPMN_PALETTE_COLLAPSE_V59: группы сворачиваются, поэтому вначале
+    # видны только заголовки. Раскрываем «События» и проверяем содержимое.
     await user.should_see("События")
     await user.should_see("Шлюзы")
+
+    user.find(marker="rs-group-События").click()
     await user.should_see("Начальное событие (здесь начинается процесс)")
 
     # Кнопка добавления у каждого символа помечена маркером

@@ -204,6 +204,12 @@ _TASK_PICTO = {
     ),
 }
 
+# Наборы кодов по форме фигуры. Нужны редактору, чтобы точки присоединения
+# линий считались по видимой фигуре, а не по габаритам блока символа:
+# событие рисуется кружком 60 px внутри блока 180 x 70.
+EVENT_KINDS = frozenset(_EVENT_SPEC)
+GATEWAY_KINDS = frozenset(_GATEWAY_MARK)
+
 
 def _event_svg(kind: str, boundary: bool | None = None) -> str:
     """Символ события.

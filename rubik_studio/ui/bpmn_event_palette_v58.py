@@ -100,19 +100,51 @@ def render_event_variants_palette(
                 for variant in variants:
                     _render_variant_card(variant, on_pick, on_hint)
 
+    # RS_EVENT_TABS_ACTIVE_V59
+    # Выбранная вкладка подсвечивается: раньше при клике менялись только
+    # карточки, а сама кнопка оставалась серой — со стороны это выглядело
+    # как «вкладки не работают». Держим кнопки в словаре и перекрашиваем
+    # при каждом переключении.
+    position_buttons: dict[str, object] = {}
+    current_position = {"value": start_position}
+
+    def paint_tabs() -> None:
+        for name, button in position_buttons.items():
+            is_active = name == current_position["value"]
+            button.style(
+                "font-size:11px; padding:5px 4px; border-radius:6px; "
+                "width:100%; min-height:26px; "
+                + (
+                    f"background:{ACTIVE}; color:#0F172A; font-weight:700;"
+                    if is_active
+                    else f"border:1px solid {PANEL_BORDER}; color:{MUTED};"
+                )
+            )
+
     def select_position(position: str) -> None:
         remembered[position] = remembered.get(position, "")
+        current_position["value"] = position
+        paint_tabs()
         fill_subtypes(position)
 
-    with ui.row().classes("w-full gap-1 no-wrap"):
+    # RS_EVENT_TABS_V59
+    # Панель символов узкая (13% ширины), а подписи вкладок длинные:
+    # «Промежуточное» и «Граничное» вылезали за край и обрезались, из-за
+    # чего вкладки казались неработающими. Ставим их сеткой 2 x 2 —
+    # каждая кнопка целиком в пределах панели.
+    with ui.element("div").style(
+        "display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); "
+        "gap:4px; width:100%;"
+    ):
         for position in POSITION_ORDER:
             active = position == start_position
             button = ui.button(
                 POSITION_TITLES[position],
-                on_click=lambda p=position: fill_subtypes(p),
+                on_click=lambda p=position: select_position(p),
             ).props("dense no-caps flat")
             button.style(
-                "font-size:11px; padding:4px 8px; border-radius:6px; "
+                "font-size:11px; padding:5px 4px; border-radius:6px; "
+                "width:100%; min-height:26px; "
                 + (
                     f"background:{ACTIVE}; color:#0F172A; font-weight:600;"
                     if active
@@ -121,6 +153,7 @@ def render_event_variants_palette(
             )
             button.props(f'data-rs-position={position}')
             button.mark(f"rs-position-{position}")
+            position_buttons[position] = button
 
     fill_subtypes(start_position)
 
