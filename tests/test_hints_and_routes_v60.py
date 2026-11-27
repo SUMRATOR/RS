@@ -85,10 +85,18 @@ def test_problems_sorted_by_severity():
     assert titles == ["о", "п", "и"]
 
 
-def test_hint_text_is_escaped():
-    """Текст подсказки — данные, а не разметка."""
+def test_hint_text_is_plain_string():
+    """Текст подсказки — обычная строка: не разбирается и не рисуется HTML.
+
+    Раньше текст пропускался через html.escape и уходил в строку свойств
+    NiceGUI, которую библиотека разбирает как Python-литерал. Обратный
+    слэш в пути ломал страницу, поэтому теперь значение ставится в
+    свойства напрямую, а подпись выводится отдельным ui.label.
+    """
     source = (ROOT / "rubik_studio/ui/hints_v60.py").read_text(encoding="utf-8")
-    assert "escape(str(text))" in source
+
+    assert 'box._props["aria-label"]' in source
+    assert 'ui.label(str(text))' in source
 
 
 # ── Маршруты ───────────────────────────────────────────────────────────────
@@ -229,3 +237,26 @@ async def test_diagnostics_reports_no_errors_in_clean_environment(isolated_datab
     assert errors == [], [
         f"{item['title']} — {item['reason']}" for item in errors
     ]
+
+
+async def test_hint_with_windows_path_does_not_break(user: User):
+    """Обратный слэш в тексте подсказки не должен ломать страницу.
+
+    Регрессия Windows-прогона CI: путь вида ``C:\\Users\\...`` попадал в
+    строку свойств NiceGUI, которая разбирается через ast.literal_eval,
+    и страница падала с SyntaxError.
+    """
+    windows_path = r"C:\Users\RUNNER~1\AppData\Local\Temp\test.db"
+
+    @ui.page("/hint-path-v60")
+    def page():
+        hint_icon(f"Где: {windows_path}", KIND_ERROR, mark="hint-path")
+
+    await user.open("/hint-path-v60")
+    await user.should_see("Где:")
+
+
+def test_hint_text_not_parsed_as_python_literal():
+    """Текст подсказки не должен проходить через разбор свойств NiceGUI."""
+    source = (ROOT / "rubik_studio/ui/hints_v60.py").read_text(encoding="utf-8")
+    assert 'box._props["aria-label"]' in source

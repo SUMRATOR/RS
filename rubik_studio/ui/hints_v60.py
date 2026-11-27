@@ -22,7 +22,8 @@
    так «!» не потеряется на тёмном фоне.
 2. Подсказка открывается наведением и по клику, поэтому работает и на
    сенсорном экране.
-3. Текст подсказки — это данные, а не разметка: HTML экранируется.
+3. Текст подсказки — это данные, а не разметка: он попадает в атрибут
+   как обычная строка, без разбора и без HTML.
 4. У каждой подсказки есть «место» (ключ), чтобы один и тот же текст
    не дублировался в разных файлах.
 """
@@ -30,7 +31,6 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from html import escape
 
 from nicegui import ui
 
@@ -119,15 +119,20 @@ def hint_icon(
         raise ValueError(f"Неизвестный вид подсказки: {kind}")
 
     caption = title or KIND_TITLES[kind]
-    safe_text = escape(str(text))
-    safe_caption = escape(caption)
     glyph = STYLES[kind]["glyph"]
 
     box = ui.element("div").style(_style_css(kind, size))
-    box.props(
-        f'data-rs-hint="{kind}" tabindex="0" role="img" '
-        f'aria-label="{safe_caption}: {safe_text}"'
-    )
+
+    # RS_HINT_PROPS_V60
+    # Текст подсказки нельзя передавать через .props(): NiceGUI разбирает
+    # строку свойств через ast.literal_eval, и обратный слэш в тексте
+    # (например, путь Windows «C:\Users\...») ломал разбор с
+    # SyntaxError. Поэтому атрибуты ставим напрямую в словарь свойств —
+    # там значение остаётся обычной строкой без разбора.
+    box.props(f'data-rs-hint="{kind}"')
+    box._props["tabindex"] = "0"
+    box._props["role"] = "img"
+    box._props["aria-label"] = f"{caption}: {text}"
     box.mark(mark or f"rs-hint-icon-{kind}")
 
     with box:
