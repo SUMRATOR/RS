@@ -159,8 +159,11 @@ BPMN/ArchiMate, удалять их нельзя, иначе поедут сущ
 
 * `pytest tests/ -q` → **298 passed** (было 275, добавлено 23 теста V59).
 * `ruff check .` → All checks passed.
-* Сервер: `/`, `/modeling-databases`, `/repository`, `/settings` → 200,
-  в логе нет ошибок.
+* Сервер: `/`, `/modeling-databases`, `/repository`, `/settings`, `/login`
+  → 200, логотип отдаётся, в логе нет ошибок.
+* Архив `RS_V59_2026-11-26.zip` проверен на чистой распаковке: 298 passed,
+  ruff чистый, сервер поднимается.
+* CI: все четыре задачи зелёные — Python 3.11, 3.12, 3.13 и Windows.
 
 ## Не проверено автоматикой (нужны ваши глаза)
 
