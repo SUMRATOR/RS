@@ -19,6 +19,7 @@ from rubik_studio.core.object_attributes_v59 import (
     schema_for,
 )
 from rubik_studio.core.repository import RepositoryError, repo_service
+from rubik_studio.ui.hints_v60 import info_badge
 from rubik_studio.ui.layout import (
     confirm_dialog,
     create_page_layout,
@@ -129,26 +130,16 @@ async def render():
     database_options = {item.id: item.name for item in databases}
 
     with content:
-        ui.label("Независимые репозитории объектов").classes(
-            "text-xl font-bold"
-        )
-
-        ui.label(
-            "Здесь хранятся объекты выбранной логической базы: "
-            "например, процессы, документы, роли и подразделения. "
-            "Объекты разных баз независимы."
-        ).classes("text-sm")
-
-        ui.label(
-            "Как начать: выберите базу, создайте объект, затем откройте "
-            "его карточку и заполните описание и атрибуты."
-        ).classes("text-sm")
-
-        ui.label(
-            "В будущем готовые объекты можно будет добавлять "
-            "на диаграммы этой же базы. Графические редакторы "
-            "пока находятся в разработке."
-        ).classes("text-sm")
+        # RS_HINT_SYSTEM_V60: вместо трёх абзацев мелкого текста —
+        # короткая строка и значок «i» с подробностями.
+        with ui.row().classes("items-center gap-2 no-wrap"):
+            ui.label("Объекты выбранной базы").classes("text-xl font-bold")
+            info_badge(
+                "Здесь хранятся объекты одной логической базы: процессы, "
+                "документы, роли, подразделения. Базы независимы: объекты "
+                "не переносятся между ними. Готовые объекты добавляются на "
+                "диаграммы этой же базы.",
+            )
 
         if not databases:
             ui.label(
@@ -167,19 +158,19 @@ async def render():
             label="Логическая база",
         ).classes("w-full")
 
-        ui.label(
-            "Выберите базу: ниже будут показаны только её объекты. "
-            "Переход к другой базе не переносит объекты."
-        ).classes("text-sm")
+        info_badge(
+            "Ниже показаны объекты только этой базы. Переключение базы "
+            "не переносит и не удаляет объекты."
+        )
 
         search_input = ui.input(
             "Поиск по названию"
         ).classes("w-full")
 
-        ui.label(
-            "Для поиска введите название и нажмите Enter "
-            "или кнопку «Найти». Тип можно использовать как фильтр."
-        ).classes("text-sm")
+        info_badge(
+            "Поиск идёт по названию: введите часть названия и нажмите "
+            "Enter. Список типов работает как фильтр.",
+        )
 
         type_select = ui.select(
             {None: "Все типы"},
@@ -281,16 +272,15 @@ async def render():
             with ui.dialog() as dialog, ui.card().classes("w-full max-w-xl"):
                 ui.label("Новый объект").classes("text-lg font-bold")
 
-                ui.label(
-                    "Введите понятное название и выберите тип. "
-                    "Например: тип «Документ», название «Заявка на закупку»."
-                ).classes("text-sm")
-
-                ui.label(
-                    "Описание необязательно. После создания откройте "
-                    "карточку объекта кнопкой с карандашом, чтобы "
-                    "заполнить дополнительные атрибуты."
-                ).classes("text-sm")
+                with ui.row().classes("items-center gap-2 no-wrap"):
+                    ui.label(
+                        "Название и тип обязательны, описание — нет."
+                    ).classes("text-sm rs-muted")
+                    info_badge(
+                        "Например: тип «Документ», название «Заявка на "
+                        "закупку». После создания нажмите карандаш — "
+                        "карточка покажет свойства именно этого типа.",
+                    )
 
                 name = ui.input("Название").classes("w-96")
 
@@ -334,8 +324,16 @@ async def render():
 
             attributes = dict(obj.attributes or {})
 
+            # RS_OBJECT_CARD_SCROLL_V60
+            # Карточка не помещалась в окно: нижние поля («Дата документа»,
+            # «Файл документа») обрезались, а прокрутки не было — до них
+            # нельзя было добраться. Ограничиваем высоту карточки, а
+            # панели вкладок прокручиваем.
             with ui.dialog() as dialog, ui.card().classes(
-                "w-full max-w-3xl"
+                "w-full max-w-3xl rs-object-card"
+            ).style(
+                "max-height: calc(100vh - 96px); display: flex; "
+                "flex-direction: column; gap: 8px;"
             ):
                 ui.label("Карточка объекта").classes(
                     "text-xl font-bold"
@@ -345,16 +343,19 @@ async def render():
                     f"Тип: {obj.type.name if obj.type else '—'}"
                 ).classes("text-sm text-gray-500")
 
-                ui.label(
-                    "На вкладке «Основное» изменяются название и описание. "
-                    "На вкладке «Атрибуты» можно добавить "
-                    "дополнительные сведения."
-                ).classes("text-sm")
-
-                ui.label(
-                    "Изменения карточки записываются в базу только "
-                    "после нажатия «Сохранить объект»."
-                ).classes("text-sm")
+                # RS_CARD_HEADER_COMPACT_V60
+                # Две длинные подсказки занимали пол-экрана и вытесняли
+                # поля вниз. Оставили одну короткую строку и значок «i».
+                with ui.row().classes("items-center gap-1 no-wrap"):
+                    ui.label(
+                        "Изменения запишутся после «Сохранить объект»."
+                    ).classes("text-sm rs-muted")
+                    info_badge(
+                        "Вкладка «Основное» — название и описание. "
+                        "Вкладка «Атрибуты» — свойства, зависящие от типа "
+                        "объекта: у документа реквизиты и файл, у клиента "
+                        "ФИО и дата рождения."
+                    )
 
                 with ui.tabs().classes("w-full") as tabs:
                     general_tab = ui.tab("Основное")
@@ -362,7 +363,12 @@ async def render():
 
                 with ui.tab_panels(
                     tabs, value=general_tab
-                ).classes("w-full"):
+                ).classes("w-full").style(
+                    # Прокрутка внутри вкладки: кнопки «Отмена» и
+                    # «Сохранить объект» остаются на виду.
+                    "flex: 1 1 auto; min-height: 0; overflow-y: auto; "
+                    "overflow-x: hidden; padding-right: 6px;"
+                ).mark("rs-object-card-scroll"):
 
                     with ui.tab_panel(general_tab):
                         name = ui.input(

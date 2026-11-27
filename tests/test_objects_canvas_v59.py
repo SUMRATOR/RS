@@ -108,7 +108,14 @@ async def test_document_card_shows_document_fields(user, isolated_database):
     from rubik_studio.ui.pages.repository import render as render_repository
 
     await database.init_db()
-    base = await modeling_service.create_database(name="Тест V59")
+
+    # Временная база общая на весь прогон, поэтому страница репозитория
+    # открывает первую базу в списке. Кладём объект именно в неё, иначе
+    # тест зависел бы от порядка выполнения других тестов.
+    existing = await repo_service.list_databases()
+    base = existing[0] if existing else await modeling_service.create_database(
+        name="Тест V59"
+    )
     types = await repo_service.list_types(database_id=base.id)
     doc_type = next(item for item in types if item.code == "DOCUMENT")
     obj = await repo_service.create_object(

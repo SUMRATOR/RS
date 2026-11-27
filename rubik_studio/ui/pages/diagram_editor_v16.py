@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 # RS_BPMN_SYMBOLS_V39
+import logging
 import uuid
 
 from nicegui import ui
@@ -23,6 +24,8 @@ from rubik_studio.core.diagram_symbols_v39 import SYMBOLS as SYMBOLS_V39
 from rubik_studio.core.repository import RepositoryService
 
 repository_service = RepositoryService()
+
+logger = logging.getLogger(__name__)
 
 # RS_DIAGRAM_SHAPE_ATTR_V59
 # Все события рисуются кружком, все шлюзы — ромбом. Наборы берутся из
@@ -2895,7 +2898,17 @@ async def open_model_editor(
             """.replace("CANVAS_ID", str(canvas.id))
 
             ui.run_javascript(pan_zoom_script)
-            attach_drag_script(canvas.id)
+
+            # RS_PALETTE_DRAG_GUARD_V60
+            # Скрипт перетаскивания — вспомогательная функция. Если он не
+            # подключился, диаграмма всё равно должна открыться: раньше
+            # исключение здесь роняло всю страницу.
+            try:
+                attach_drag_script(canvas.id)
+            except Exception as exc:
+                logger.warning(
+                    "Перетаскивание символов не подключено: %s", exc
+                )
 
             markup, line_count = render_smart_links_svg(
                 state["nodes"],

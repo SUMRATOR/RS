@@ -247,6 +247,20 @@ def draggable_symbol(
                 hint.tooltip("Что это и когда применять")
 
 
-def attach_drag_script(canvas_id: str) -> None:
-    """Включить перетаскивание для палитры и приём на поле диаграммы."""
-    ui.run_javascript(DRAG_SCRIPT.replace("CANVAS_ID", canvas_id))
+def attach_drag_script(canvas_id) -> None:
+    """Включить перетаскивание для палитры и приём на поле диаграммы.
+
+    ``canvas_id`` приходит из NiceGUI как число, а не строка: подставлять
+    его в JS нужно через str(). Иначе редактор падал с
+    ``TypeError: replace() argument 2 must be str, not int`` и диаграмма
+    не открывалась вовсе.
+    """
+    canvas_key = str(canvas_id)
+
+    # В скрипт подставляется только числовой идентификатор компонента,
+    # пользовательский текст в код не попадает. На всякий случай
+    # оставляем только цифры и латиницу.
+    if not canvas_key.isalnum():
+        raise ValueError("Некорректный идентификатор полотна")
+
+    ui.run_javascript(DRAG_SCRIPT.replace("CANVAS_ID", canvas_key))
