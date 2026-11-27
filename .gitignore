@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Данные приложения (локальные, не публикуются)
+data/
+
+# IDE
+.idea/
+.vscode/
+
+# Сборки
+build/
+dist/
+*.spec.bak
+
+# ОС
+.DS_Store
+Thumbs.db
+# Локальные резервные копии (создаются при правках)
+*.bak
+*.bak_*
+*.backup_*
+*.before_v*

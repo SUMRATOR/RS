@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+# Нужно, чтобы упавший Windows-прогон мог оставить причину в PR:
+# логи задач из внешнего хранилища иногда недоступны, а комментарий — нет.
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false   # падение 3.11 не отменяет прогон на 3.12 и 3.13
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Lint (ruff)
+        run: ruff check .
+      - name: Style debt report
+        run: python tools/lint_report_F.py
+      - name: Type check (mypy)
+        run: mypy rubik_studio || true
+      - name: Tests
+        # JUnit-отчёт нужен, чтобы падения были видны аннотациями GitHub.
+        run: pytest -v --junit-xml=report.xml
+      - name: Test failures as annotations
+        if: failure()
+        run: python tools/ci_report_F.py report.xml
+
+  # Второй прогон на Windows: приложение распространяется как EXE, а часть
+  # кода зависит от платформы (msvcrt, пути, запуск из exe). На Linux эти
+  # ошибки не видны — например, импорт msvcrt на не-Windows ломал весь
+  # интерфейс, и это выяснилось только вручную.
+  test-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Tests (Windows)
+        # Логи задач в интерфейсе GitHub бывают недоступны. Пишем полный
+        # вывод в файл и публикуем его артефактом — оттуда его можно
+        # скачать без доступа к логам прогона.
+        shell: bash
+        run: |
+          set +e
+          pytest -q --junit-xml=report.xml > pytest-windows.log 2>&1
+          status=$?
+          tail -40 pytest-windows.log
+          if [ -f report.xml ]; then
+            python tools/ci_report_F.py report.xml || true
+          fi
+          echo "pytest exit: $status"
+          exit $status
+      - name: Windows log artefact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-windows
+          path: |
+            pytest-windows.log
+            report.xml
+          if-no-files-found: warn
+      - name: Report failure into pull request
+        if: failure() && github.event_name == 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! command -v gh >/dev/null 2>&1; then
+            echo "gh недоступен — пропускаем"
+            exit 0
+          fi
+          {
+            echo "**Windows: тесты упали** (коммит ${GITHUB_SHA:0:7})"
+            echo
+            echo '```'
+            grep -E "^(FAILED|ERROR)" pytest-windows.log | head -30 || tail -30 pytest-windows.log
+            echo '```'
+          } > body.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file body.md || true

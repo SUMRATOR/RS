@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rubik-studio"
+version = "0.2.0"
+description = "RS — RUBIK STUDIO: Model. Mine. Automate."
+requires-python = ">=3.11"
+license = {text = "MIT"}
+dependencies = [
+    "nicegui",
+    "sqlalchemy[asyncio]>=2.0",
+    "aiosqlite",
+    "passlib[bcrypt]",
+    "pywebview",
+    "alembic",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+    "mypy",
+]
+
+[tool.setuptools.packages.find]
+include = ["rubik_studio*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+# NiceGUI-симулятор импортирует этот файл вместо рабочего main.py.
+main_file = "tests/nicegui_main_for_tests.py"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+# Унаследованный код приводится в порядок постепенно. Здесь включены
+# правила, которые ловят настоящие ошибки: синтаксис, неопределённые
+# имена, мёртвые импорты, порядок импортов. Стилистические (BLE001,
+# SIM117, EXE001 и подобные) отключены осознанно — их правка в рабочем
+# коде без нужды меняет поведение интерфейса. Полный перечень долга
+# печатает tools/lint_report_F.py.
+[tool.ruff.lint]
+select = [
+    "E4", "E7", "E9",  # синтаксис и явные ошибки
+    "F",               # pyflakes: неопределённые имена, мёртвые импорты
+    "I",               # порядок импортов
+    "UP",              # устаревшие конструкции Python
+    "RUF100",          # неактуальные noqa
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Модули страниц регистрируют @ui.page побочным эффектом импорта.
+"rubik_studio/main.py" = ["F401"]
+
+[tool.mypy]
+python_version = "3.11"
