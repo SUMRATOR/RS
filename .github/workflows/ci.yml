@@ -52,15 +52,26 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
       - name: Tests (Windows)
-        # Логи задач в интерфейсе GitHub бывают недоступны, поэтому итог и
-        # список падений дополнительно печатаются в сводку шага.
+        # Логи задач в интерфейсе GitHub бывают недоступны. Пишем полный
+        # вывод в файл и публикуем его артефактом — оттуда его можно
+        # скачать без доступа к логам прогона.
         shell: bash
         run: |
           set +e
-          pytest -q --junit-xml=report.xml 2>&1 | tail -60
-          status=${PIPESTATUS[0]}
-          echo "pytest exit: $status"
+          pytest -q --junit-xml=report.xml > pytest-windows.log 2>&1
+          status=$?
+          tail -40 pytest-windows.log
           if [ -f report.xml ]; then
             python tools/ci_report_F.py report.xml || true
           fi
+          echo "pytest exit: $status"
           exit $status
+      - name: Windows log artefact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-windows
+          path: |
+            pytest-windows.log
+            report.xml
+          if-no-files-found: warn
