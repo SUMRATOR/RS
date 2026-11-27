@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from nicegui import ui
 
+from rubik_studio import __version__
 from rubik_studio.auth.middleware import current_user
 from rubik_studio.auth.users import (
     AuthError,
@@ -207,7 +208,7 @@ async def render() -> None:
             ui.label("О программе").classes("text-lg font-semibold")
             logo(size=64)
             ui.label("RS — RUBIK STUDIO")
-            ui.label("Версия 0.1.0")
+            ui.label(f"Версия {__version__}")
             ui.label("Лицензия MIT")
             ui.label("Model. Mine. Automate.")
 

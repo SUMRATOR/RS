@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 
+from rubik_studio.core.audit_logger import audit
 from rubik_studio.core.database import get_session_factory
 from rubik_studio.core.models import (
     Methodology,
@@ -120,6 +121,20 @@ class ModelingService:
                     "Не удалось создать логическую базу"
                 ) from exc
 
+            # RS_AUDIT_DATABASES_V60
+            # Создание базы — значимое действие, но в журнал не попадало:
+            # в аудите были только объекты и трафареты. Теперь есть.
+            await audit.log(
+                action="CREATE",
+                entity_type="DATABASE",
+                entity_id=str(database.id),
+                entity_name=database.name,
+                details={
+                    "methodology": methodology_code,
+                    "description": database.description or "",
+                },
+            )
+
             return database
 
     async def rename_database(
@@ -159,6 +174,15 @@ class ModelingService:
             )
 
             await session.commit()
+
+            # RS_AUDIT_DATABASES_V60: переименование базы.
+            await audit.log(
+                action="UPDATE",
+                entity_type="DATABASE",
+                entity_id=str(database.id),
+                entity_name=database.name,
+                details={"new_name": database.name},
+            )
 
             return database
 
@@ -430,6 +454,9 @@ class ModelingService:
                         "Удаление запрещено."
                     )
 
+            deleted_name = database.name
+            deleted_id = str(database.id)
+
             await session.delete(database)
 
             try:
@@ -439,6 +466,15 @@ class ModelingService:
                 raise ModelingError(
                     "База используется другими компонентами"
                 ) from exc
+
+            # RS_AUDIT_DATABASES_V60: удаление базы.
+            await audit.log(
+                action="DELETE",
+                entity_type="DATABASE",
+                entity_id=deleted_id,
+                entity_name=deleted_name,
+                details={"deleted": True},
+            )
 
 
 modeling_service = ModelingService()

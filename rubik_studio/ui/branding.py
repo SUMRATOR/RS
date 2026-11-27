@@ -16,13 +16,29 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 from nicegui import ui
 
 from rubik_studio.core.themes_v56 import THEME_LIGHT
 
-ASSETS = Path(__file__).resolve().parent.parent / "assets"
+
+def _assets_root() -> Path:
+    """Папка с ресурсами: работает и из исходников, и из EXE.
+
+    В сжатой сборке PyInstaller (--onefile) файлы лежат во временной
+    папке ``sys._MEIPASS``. Без этой проверки логотип в установленной
+    программе не находился и подменялся буквой «R».
+    """
+    frozen_root = getattr(sys, "_MEIPASS", None)
+    if frozen_root:
+        return Path(frozen_root) / "rubik_studio" / "assets"
+
+    return Path(__file__).resolve().parent.parent / "assets"
+
+
+ASSETS = _assets_root()
 
 LOGO_LIGHT = ASSETS / "rubik_logo_light.png"
 LOGO_DARK = ASSETS / "rubik_logo_dark.png"

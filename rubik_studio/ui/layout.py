@@ -19,6 +19,7 @@ NAV_ITEMS = [
     ("Process Mining", "/mining", "insights"),
     ("Задачи и процессы", "/bpms", "task_alt"),
     ("Аудит-логи", "/logs", "history"),
+    ("Диагностика", "/diagnostics", "health_and_safety"),
     ("Настройки", "/settings", "settings"),
 ]
 

@@ -172,6 +172,23 @@ async def render():
             "Enter. Список типов работает как фильтр.",
         )
 
+        # RS_TEMPLATES_ENTRY_V60
+        # Трафареты уже используются при создании объекта, но отдельной
+        # кнопки не было: пользователь не догадывался, что набор полей
+        # можно задать заранее. Ставим кнопку рядом с поиском.
+        with ui.row().classes("items-center gap-2"):
+            templates_button = ui.button(
+                "Шаблоны (трафареты) объекта",
+                icon="view_list",
+                on_click=lambda: open_templates_dialog(user),
+            ).props("flat")
+            templates_button.mark("rs-open-templates")
+            info_badge(
+                "Трафарет — заранее заданный набор полей. Создайте его один "
+                "раз, а потом создавайте объекты по трафарету: значения "
+                "полей уже будут на месте.",
+            )
+
         type_select = ui.select(
             {None: "Все типы"},
             value=None,

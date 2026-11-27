@@ -115,6 +115,39 @@ async def rubik_settings_page():
     await render()
 
 
+# RS_SOON_PAGES_V60
+# Пункты меню, у которых ещё нет редактора, раньше вели на 404. Теперь
+# это обычные страницы с честным статусом раздела.
+@ui.page("/modeler")
+async def rubik_modeler_page():
+    from rubik_studio.ui.pages.soon_v60 import render_soon
+
+    render_soon("modeler")
+
+
+@ui.page("/mining")
+async def rubik_mining_page():
+    from rubik_studio.ui.pages.soon_v60 import render_soon
+
+    render_soon("mining")
+
+
+@ui.page("/bpms")
+async def rubik_bpms_page():
+    from rubik_studio.ui.pages.soon_v60 import render_soon
+
+    render_soon("bpms")
+
+
+@ui.page("/diagnostics")
+async def rubik_diagnostics_page():
+    """Диагностика: что в порядке, что под вопросом и что сломано."""
+
+    from rubik_studio.ui.pages.diagnostics_v60 import render_diagnostics
+
+    await render_diagnostics()
+
+
 @ui.page("/modeling-databases")
 async def rubik_modeling_databases_page():
     from rubik_studio.ui.pages.modeling_databases import render
