@@ -211,3 +211,21 @@ async def test_database_actions_are_audited(isolated_database):
 
     after = (await audit.get_stats()).get("total", 0)
     assert after - before >= 3
+
+
+async def test_diagnostics_reports_no_errors_in_clean_environment(isolated_database):
+    """На рабочем окружении диагностика не должна находить ошибок.
+
+    Проверка ловит ложные срабатывания: если диагностика показывает «!»
+    там, где всё в порядке, пользователь перестаёт ей верить.
+    """
+    from rubik_studio.core import database
+    from rubik_studio.ui.pages.diagnostics_v60 import KIND_ERROR, collect_checks
+
+    await database.init_db()
+    items = await collect_checks()
+
+    errors = [item for item in items if item["kind"] == KIND_ERROR]
+    assert errors == [], [
+        f"{item['title']} — {item['reason']}" for item in errors
+    ]

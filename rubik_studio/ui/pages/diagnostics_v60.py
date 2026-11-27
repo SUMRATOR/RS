@@ -108,7 +108,14 @@ async def collect_checks() -> list[dict]:
 
     # 2. Запись в папку данных: без неё не сохранятся настройки и база.
     try:
-        data_dir = Path(config.data_dir) if config.data_dir else Path.cwd()
+        # Папка данных — та, где лежит база; отдельного поля в конфиге нет.
+        if config.db_type == "sqlite" and config.db_path:
+            data_dir = Path(config.db_path).resolve().parent
+        else:
+            from rubik_studio.config import BASE_DIR
+
+            data_dir = Path(BASE_DIR)
+
         data_dir.mkdir(parents=True, exist_ok=True)
 
         with tempfile.NamedTemporaryFile(
@@ -130,7 +137,7 @@ async def collect_checks() -> list[dict]:
                 KIND_ERROR,
                 "Нет прав на запись в папку данных",
                 f"{type(exc).__name__}: {exc}",
-                "config.data_dir",
+                "config.db_path, config.BASE_DIR",
             )
         )
 
